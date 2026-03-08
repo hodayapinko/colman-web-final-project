@@ -4,6 +4,7 @@ import User from '../models/User.model';
 import { TokenService } from '../services/tokenService';
 import { OAuthService } from '../services/oauthService';
 import { getRefreshTokenFromRequest, setRefreshCookie, clearRefreshCookie } from '../utils/cookieUtils';
+import { HTTP_STATUS } from '../constants/constants';
 
 export class AuthController {
   /**
@@ -16,27 +17,27 @@ export class AuthController {
 
       // Validate required fields
       if (!username || !email || !password) {
-        res.status(400).json({ message: 'missing username, email or password' });
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'missing username, email or password' });
         return;
       }
 
       // Validate password
       if (!password || password.length < 8) {
-        res.status(400).json({ message: 'Password must be at least 8 characters' });
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'Password must be at least 8 characters' });
         return;
       }
 
       // Check if username exists
       const existingUsername = await User.findOne({ username });
       if (existingUsername) {
-        res.status(409).json({ message: 'username already exists' });
+        res.status(HTTP_STATUS.CONFLICT).json({ message: 'username already exists' });
         return;
       }
 
       // Check if email exists
       const existingEmail = await User.findOne({ email });
       if (existingEmail) {
-        res.status(409).json({ message: 'email already exists' });
+        res.status(HTTP_STATUS.CONFLICT).json({ message: 'email already exists' });
         return;
       }
 
@@ -51,14 +52,14 @@ export class AuthController {
       });
 
       // Return user data (exclude password)
-      res.status(201).json({
+      res.status(HTTP_STATUS.CREATED).json({
         _id: user._id,
         username: user.username,
         email: user.email
       });
     } catch (error) {
       console.error('Registration error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
 
@@ -72,7 +73,7 @@ export class AuthController {
 
       // Validate required fields
       if ((!email && !username) || !password) {
-        res.status(400).json({ message: 'missing username/email or password' });
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'missing username/email or password' });
         return;
       }
 
@@ -82,21 +83,21 @@ export class AuthController {
       );
 
       if (!user || !user.password) {
-        res.status(401).json({ message: 'email or password incorrect' });
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'email or password incorrect' });
         return;
       }
 
       // Compare password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
-        res.status(401).json({ message: 'email or password incorrect' });
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'email or password incorrect' });
         return;
       }
 
       // Generate tokens
       const tokens = TokenService.generateTokenPair(user._id.toString());
       if (!tokens) {
-        res.status(500).json({ message: 'Failed to generate tokens' });
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Failed to generate tokens' });
         return;
       }
 
@@ -109,14 +110,14 @@ export class AuthController {
       setRefreshCookie(res, tokens.refreshToken);
 
       // Return tokens and user ID
-      res.status(200).json({
+      res.status(HTTP_STATUS.OK).json({
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         _id: user._id
       });
     } catch (error) {
       console.error('Login error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
 
@@ -130,7 +131,7 @@ export class AuthController {
 
       // Validate idToken
       if (!idToken) {
-        res.status(400).json({ message: 'missing idToken' });
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'missing idToken' });
         return;
       }
 
@@ -157,7 +158,7 @@ export class AuthController {
       // Generate tokens
       const tokens = TokenService.generateTokenPair(user._id.toString());
       if (!tokens) {
-        res.status(500).json({ message: 'Failed to generate tokens' });
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Failed to generate tokens' });
         return;
       }
 
@@ -170,7 +171,7 @@ export class AuthController {
       setRefreshCookie(res, tokens.refreshToken);
 
       // Return tokens and user ID
-      res.status(200).json({
+      res.status(HTTP_STATUS.OK).json({
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         _id: user._id
@@ -178,11 +179,11 @@ export class AuthController {
     } catch (error) {
       console.error('Google login error:', error);
       if (error instanceof Error && error.message === 'Invalid Google token') {
-        res.status(401).json({ message: 'invalid Google token' });
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'invalid Google token' });
       } else if (error instanceof Error && error.message === 'GOOGLE_CLIENT_ID is not defined') {
-        res.status(500).json({ message: 'GOOGLE_CLIENT_ID is not defined' });
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'GOOGLE_CLIENT_ID is not defined' });
       } else {
-        res.status(500).json({ message: 'Internal server error' });
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
       }
     }
   }
@@ -197,7 +198,7 @@ export class AuthController {
       const refreshToken = getRefreshTokenFromRequest(req);
 
       if (!refreshToken) {
-        res.status(401).json({ message: 'Unauthorized' });
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'Unauthorized' });
         return;
       }
 
@@ -206,7 +207,7 @@ export class AuthController {
       try {
         payload = await TokenService.verifyToken(refreshToken);
       } catch (error) {
-        res.status(401).json({ message: 'invalid or expired refresh token' });
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'invalid or expired refresh token' });
         return;
       }
 
@@ -215,13 +216,13 @@ export class AuthController {
       const user = await User.findById(userId);
 
       if (!user) {
-        res.status(401).json({ message: 'Unauthorized' });
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'Unauthorized' });
         return;
       }
 
       // Check if refresh token exists in user's token array
       if (!user.refreshTokens || !user.refreshTokens.includes(refreshToken)) {
-        res.status(401).json({ message: 'invalid refresh token' });
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'invalid refresh token' });
         return;
       }
 
@@ -231,7 +232,7 @@ export class AuthController {
       // Generate new tokens
       const tokens = TokenService.generateTokenPair(user._id.toString());
       if (!tokens) {
-        res.status(500).json({ message: 'Failed to generate tokens' });
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Failed to generate tokens' });
         return;
       }
 
@@ -243,14 +244,14 @@ export class AuthController {
       setRefreshCookie(res, tokens.refreshToken);
 
       // Return new tokens
-      res.status(200).json({
+      res.status(HTTP_STATUS.OK).json({
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         _id: user._id
       });
     } catch (error) {
       console.error('Refresh error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
 
@@ -264,7 +265,7 @@ export class AuthController {
       const refreshToken = getRefreshTokenFromRequest(req);
 
       if (!refreshToken) {
-        res.status(401).json({ message: 'Unauthorized' });
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'Unauthorized' });
         return;
       }
 
@@ -276,7 +277,7 @@ export class AuthController {
       } catch (error) {
         // Token invalid/expired, still clear cookie
         clearRefreshCookie(res);
-        res.status(200).json({ message: 'logout success' });
+        res.status(HTTP_STATUS.OK).json({ message: 'logout success' });
         return;
       }
 
@@ -290,10 +291,10 @@ export class AuthController {
       // Clear refresh token cookie
       clearRefreshCookie(res);
 
-      res.status(200).json({ message: 'logout success' });
+      res.status(HTTP_STATUS.OK).json({ message: 'logout success' });
     } catch (error) {
       console.error('Logout error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
 
@@ -308,14 +309,14 @@ export class AuthController {
       const user = await User.findById(userId).select('-password -refreshTokens');
 
       if (!user) {
-        res.status(404).json({ message: 'User not found' });
+        res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'User not found' });
         return;
       }
 
-      res.status(200).json(user);
+      res.status(HTTP_STATUS.OK).json(user);
     } catch (error) {
       console.error('Get user error:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
 }
