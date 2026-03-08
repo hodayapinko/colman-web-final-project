@@ -1,5 +1,5 @@
 import { Router } from "express";
-import authController from "../controllers/authController";
+import { AuthController } from "../controllers/authController";
 import { authMiddleware } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -66,7 +66,7 @@ const router = Router();
  *       500:
  *         description: Internal server error
  */
-router.post("/register", authController.register);
+router.post("/register", AuthController.register);
 
 /**
  * @swagger
@@ -145,7 +145,7 @@ router.post("/register", authController.register);
  *                   type: string
  *                   example: "internal server error"
  */
-router.post("/login", authController.login);
+router.post("/login", AuthController.login);
 
 /**
  * @swagger
@@ -174,7 +174,7 @@ router.post("/login", authController.login);
  *       401:
  *         description: Invalid Google token
  */
-router.post("/google", authController.googleLogin);
+router.post("/google", AuthController.googleLogin);
 
 /**
  * @swagger
@@ -237,7 +237,7 @@ router.post("/google", authController.googleLogin);
  *                   type: string
  *                   example: "internal server error"
  */
-router.post("/refresh", authController.refresh);
+router.post("/refresh", AuthController.refresh);
 
 /**
  * @swagger
@@ -281,7 +281,7 @@ router.post("/refresh", authController.refresh);
  *                   type: string
  *                   example: "failed to Logout"
  */
-router.post("/logout", authController.logout);
+router.post("/logout", AuthController.logout);
 
 /**
  * @swagger
@@ -298,6 +298,6 @@ router.post("/logout", authController.logout);
  *       401:
  *         description: Unauthorized
  */
-router.get("/me", authMiddleware, authController.me);
+router.get("/me", authMiddleware, AuthController.me);
 
 export default router;
