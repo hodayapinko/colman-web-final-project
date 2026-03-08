@@ -30,6 +30,7 @@ export async function authMiddleware(
     // Verify token
     try {
       const payload = await TokenService.verifyToken(token);
+      TokenService.assertTokenType(payload, 'access');
       const userId = TokenService.extractUserId(payload);
 
       // Attach user ID to request params

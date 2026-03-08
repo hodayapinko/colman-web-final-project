@@ -206,6 +206,7 @@ export class AuthController {
       let payload;
       try {
         payload = await TokenService.verifyToken(refreshToken);
+        TokenService.assertTokenType(payload, 'refresh');
       } catch (error) {
         res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'invalid or expired refresh token' });
         return;
@@ -273,6 +274,7 @@ export class AuthController {
       let userId;
       try {
         const payload = await TokenService.verifyToken(refreshToken);
+        TokenService.assertTokenType(payload, 'refresh');
         userId = TokenService.extractUserId(payload);
       } catch (error) {
         // Token invalid/expired, still clear cookie

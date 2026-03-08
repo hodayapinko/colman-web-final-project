@@ -6,9 +6,12 @@ export interface TokenPair {
   refreshToken: string;
 }
 
+export type TokenType = 'access' | 'refresh';
+
 export interface TokenPayload {
   _id: string;
   random: string;
+  tokenType: TokenType;
   iat: number;
   exp: number;
 }
@@ -29,10 +32,12 @@ export class TokenService {
     }
 
     const randomString = crypto.randomBytes(16).toString('hex');
-    const payload = { _id: userId, random: randomString };
-    
-    const accessToken = jwt.sign(payload, secret, { expiresIn: this.ACCESS_TOKEN_EXPIRY });
-    const refreshToken = jwt.sign(payload, secret, { expiresIn: this.REFRESH_TOKEN_EXPIRY });
+
+    const accessPayload = { _id: userId, random: randomString, tokenType: 'access' as const };
+    const refreshPayload = { _id: userId, random: randomString, tokenType: 'refresh' as const };
+
+    const accessToken = jwt.sign(accessPayload, secret, { expiresIn: this.ACCESS_TOKEN_EXPIRY });
+    const refreshToken = jwt.sign(refreshPayload, secret, { expiresIn: this.REFRESH_TOKEN_EXPIRY });
 
     return { accessToken, refreshToken };
   }
@@ -56,6 +61,15 @@ export class TokenService {
         }
       });
     });
+  }
+
+  /**
+   * Ensures the verified payload matches the expected token type.
+   */
+  static assertTokenType(payload: TokenPayload, expected: TokenType): void {
+    if (!payload?.tokenType || payload.tokenType !== expected) {
+      throw new Error('Invalid token type');
+    }
   }
 
   /**
