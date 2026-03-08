@@ -81,6 +81,7 @@ describe("authMiddleware", () => {
     await authMiddleware(mockRequest as Request, mockResponse as Response, mockNext);
 
     expect(mockRequest.params?.userId).toBe('user123');
+    expect((mockRequest as any).userId).toBe('user123');
     expect(mockNext).toHaveBeenCalled();
     expect(statusMock).not.toHaveBeenCalled();
   });

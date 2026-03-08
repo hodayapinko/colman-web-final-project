@@ -4,7 +4,7 @@ import { TokenService } from '../services/tokenService';
 /**
  * Middleware to protect routes requiring authentication
  * Validates access token from Authorization header
- * Attaches userId to req.params for downstream use
+ * Attaches userId to the request for downstream use
  */
 export async function authMiddleware(
   req: Request,
@@ -33,7 +33,9 @@ export async function authMiddleware(
       TokenService.assertTokenType(payload, 'access');
       const userId = TokenService.extractUserId(payload);
 
-      // Attach user ID to request params
+      // Attach user ID for downstream handlers.
+      // Keep req.params.userId as well for backwards compatibility.
+      (req as Request & { userId?: string }).userId = userId;
       req.params.userId = userId;
 
       next();
