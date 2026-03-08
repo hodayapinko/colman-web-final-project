@@ -1,5 +1,6 @@
 import { Router } from "express";
 import authController from "../controllers/authController";
+import { authMiddleware } from "../middleware/authMiddleware";
 
 const router = Router();
 
@@ -148,6 +149,35 @@ router.post("/login", authController.login);
 
 /**
  * @swagger
+ * /auth/google:
+ *   post:
+ *     summary: Login/register using Google
+ *     description: Verifies a Google ID token and returns access and refresh tokens
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - idToken
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 description: Google ID token from the client
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       400:
+ *         description: Missing idToken
+ *       401:
+ *         description: Invalid Google token
+ */
+router.post("/google", authController.googleLogin);
+
+/**
+ * @swagger
  * /auth/refresh:
  *   post:
  *     summary: Refresh access token
@@ -252,5 +282,22 @@ router.post("/refresh", authController.refresh);
  *                   example: "failed to Logout"
  */
 router.post("/logout", authController.logout);
+
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Get current user
+ *     description: Returns the currently authenticated user profile
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/me", authMiddleware, authController.me);
 
 export default router;

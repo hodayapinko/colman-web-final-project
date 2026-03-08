@@ -3,24 +3,36 @@ import authController from "../authController";
 import User from "../../models/User.model";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
 
 jest.mock("../../models/User.model");
 jest.mock("bcryptjs");
 jest.mock("jsonwebtoken");
+jest.mock("google-auth-library", () => {
+  return {
+    OAuth2Client: jest.fn(),
+  };
+});
 
 describe("Auth Controller", () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
   let statusMock: jest.Mock;
   let sendMock: jest.Mock;
+  let cookieMock: jest.Mock;
+  let clearCookieMock: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     sendMock = jest.fn();
     statusMock = jest.fn().mockReturnValue({ send: sendMock });
+    cookieMock = jest.fn();
+    clearCookieMock = jest.fn();
     mockResponse = {
       status: statusMock,
       send: sendMock,
+      cookie: cookieMock as any,
+      clearCookie: clearCookieMock as any,
     };
     mockRequest = { body: {} };
     process.env.TOKEN_SECRET = "test-secret";
@@ -211,7 +223,7 @@ describe("Auth Controller", () => {
 
       expect(statusMock).toHaveBeenCalledWith(400);
       expect(sendMock).toHaveBeenCalledWith({
-        message: "missing email or password",
+        message: "missing username/email or password",
       });
     });
 
@@ -227,7 +239,7 @@ describe("Auth Controller", () => {
 
       expect(statusMock).toHaveBeenCalledWith(400);
       expect(sendMock).toHaveBeenCalledWith({
-        message: "missing email or password",
+        message: "missing username/email or password",
       });
     });
 
@@ -553,6 +565,66 @@ describe("Auth Controller", () => {
 
       expect(statusMock).toHaveBeenCalledWith(400);
       expect(sendMock).toHaveBeenCalledWith({ message: "failed to Logout" });
+    });
+  });
+
+  describe("googleLogin", () => {
+    it("should return 400 if idToken is missing", async () => {
+      mockRequest.body = {};
+
+      await authController.googleLogin(
+        mockRequest as Request,
+        mockResponse as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(400);
+      expect(sendMock).toHaveBeenCalledWith({ message: "missing idToken" });
+    });
+
+    it("should login successfully with a valid Google token for existing user", async () => {
+      process.env.GOOGLE_CLIENT_ID = "google-client-id";
+
+      const verifyIdTokenMock = jest.fn().mockResolvedValue({
+        getPayload: () => ({
+          email: "test@example.com",
+          name: "Test User",
+          picture: "https://example.com/pic.png",
+        }),
+      });
+
+      (OAuth2Client as unknown as jest.Mock).mockImplementation(() => ({
+        verifyIdToken: verifyIdTokenMock,
+      }));
+
+      const mockUser = {
+        _id: "507f1f77bcf86cd799439011",
+        email: "test@example.com",
+        refreshTokens: [],
+        save: jest.fn().mockResolvedValue(true),
+      };
+
+      mockRequest.body = { idToken: "valid-google-id-token" };
+
+      (User.findOne as jest.Mock).mockResolvedValue(mockUser);
+      (jwt.sign as jest.Mock)
+        .mockReturnValueOnce("accessToken123")
+        .mockReturnValueOnce("refreshToken123");
+
+      await authController.googleLogin(
+        mockRequest as Request,
+        mockResponse as Response,
+      );
+
+      expect(verifyIdTokenMock).toHaveBeenCalled();
+      expect(User.findOne).toHaveBeenCalledWith({ email: "test@example.com" });
+      expect(mockUser.save).toHaveBeenCalled();
+      expect(cookieMock).toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(200);
+      expect(sendMock).toHaveBeenCalledWith({
+        accessToken: "accessToken123",
+        refreshToken: "refreshToken123",
+        _id: mockUser._id,
+      });
     });
   });
 });
