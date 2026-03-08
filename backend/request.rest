@@ -1,0 +1,195 @@
+### Create a New Post
+POST http://localhost:3001/api/posts
+Content-Type: application/json
+
+{
+  "title": "Test Post",
+  "content": "This is a test post content with enough characters to meet the minimum requirement.",
+  "userId": "697df689994f0a817f86d44b"
+}
+
+###
+
+### Get All Posts
+GET http://localhost:3001/api/posts
+
+###
+
+### Get Post by ID
+GET http://localhost:3001/api/posts/69738d2fc742184ae8b302a5
+
+###
+
+### Get Posts by User ID
+GET http://localhost:3001/api/posts?userId=697dd9167755d88d33010f99
+
+###
+
+### Update a Post
+PUT http://localhost:3001/api/posts/697dce5a70a3a6007f1ae136
+Content-Type: application/json
+
+{
+  "title": "Updated Post Title",
+  "content": "This is the updated content of the post. It has been modified with new information.",
+  "userId": "697df689994f0a817f86d44b"
+}
+
+###
+
+### Create a New Comment
+POST http://localhost:3001/api/comments
+Content-Type: application/json
+
+{
+  "postId": "697dce5a70a3a6007f1ae136",
+  "content": "dddddddddddddddddddd",
+  "userId": "697df5ea994f0a817f86d429"
+}
+
+###
+
+### Get All Comments
+GET http://localhost:3001/api/comments
+
+###
+
+### Get Comment by ID
+GET http://localhost:3001/api/comments/697df780994f0a817f86d45e
+
+###
+
+### Get Comments by Post ID
+GET http://localhost:3001/api/comments/post/697dce5a70a3a6007f1ae136
+
+###
+
+### Update Comment
+PUT http://localhost:3001/api/comments/697df780994f0a817f86d45e
+Content-Type: application/json
+
+{
+  "content": "Updated comment content!"
+}
+
+###
+
+### Delete Comment
+DELETE http://localhost:3001/api/comments/697df780994f0a817f86d45e
+
+###
+
+### Create a New User
+POST http://localhost:3001/api/users
+Content-Type: application/json
+
+{
+  "username": "aamit",
+  "email": "aamit@example.com",
+  "password": "aamit123456",
+  "age": 28,
+  "bio": "Software developer passionate about web technologies",
+  "profilePicture": "https://example.com/profile/johndoe.jpg"
+}
+
+###
+
+### Get All Users
+GET http://localhost:3001/api/users
+
+###
+
+### Get User by ID
+GET http://localhost:3001/api/users/697df689994f0a817f86d44b
+
+###
+
+### Update a User
+PUT http://localhost:3001/api/users/697df689994f0a817f86d44b
+Content-Type: application/json
+
+{
+  "username": "johndoe456",
+  "email": "john.updated@example.com",
+  "password": "newPassword123",
+  "age": 30,
+  "bio": "Updated bio - Senior software developer",
+  "profilePicture": "https://example.com/profile/updated.jpg"
+}
+
+###
+
+### Delete a User
+DELETE http://localhost:3001/api/users/697df689994f0a817f86d44b
+
+###
+
+########################################
+# AUTH API - REGISTER
+########################################
+
+POST http://localhost:3001/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+### Register
+# Method: POST
+# URL: /auth/register
+# Description: Register a new user
+# Expected Response: 200 OK
+
+########################################
+# AUTH API - LOGIN
+########################################
+
+POST http://localhost:3001/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+### Login
+# Method: POST
+# URL: /auth/login
+# Description: Login with email and password
+# Expected Response: 200 OK with accessToken, refreshToken, and _id
+
+########################################
+# AUTH API - REFRESH TOKEN
+########################################
+
+POST http://localhost:3001/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "YOUR_REFRESH_TOKEN_HERE"
+}
+
+### Refresh Token
+# Method: POST
+# URL: /auth/refresh
+# Description: Get new access and refresh tokens
+# Expected Response: 200 OK with new tokens
+
+########################################
+# AUTH API - LOGOUT
+########################################
+
+POST http://localhost:3001/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "YOUR_REFRESH_TOKEN_HERE"
+}
+
+### Logout
+# Method: POST
+# URL: /auth/logout
+# Description: Logout and invalidate refresh token
+# Expected Response: 200 OK
