@@ -18,8 +18,10 @@ export function setRefreshCookie(res: Response, refreshToken: string): void {
   res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: SEVEN_DAYS_MS
+    // In production (often cross-site frontend/backend), cookies typically must be SameSite=None + Secure.
+    // In local development, Lax is usually the most reliable default.
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: SEVEN_DAYS_MS,
   });
 }
 
@@ -30,7 +32,7 @@ export function clearRefreshCookie(res: Response): void {
   res.cookie(REFRESH_TOKEN_COOKIE_NAME, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 0
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 0,
   });
 }

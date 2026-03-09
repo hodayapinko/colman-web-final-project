@@ -86,7 +86,8 @@ export class AuthController {
     try {
       let { email, username, password } = req.body;
 
-  
+      username = username?.trim();
+      email = email?.trim().toLowerCase();
 
       if ((!email && !username) || !password) {
         res
@@ -157,7 +158,9 @@ export class AuthController {
 
       const googleUser = await OAuthService.verifyGoogleToken(idToken);
 
-      let user = await User.findOne({ email: googleUser.email.toLowerCase() });
+      const normalizedEmail = googleUser.email.toLowerCase();
+
+      let user = await User.findOne({ email: normalizedEmail });
 
       if (!user) {
         const username = await OAuthService.generateUniqueUsername(
@@ -167,7 +170,7 @@ export class AuthController {
 
         user = await User.create({
           username: username,
-          email: googleUser.email,
+          email: normalizedEmail,
           profilePicture: googleUser.picture,
           refreshTokens: [],
         });

@@ -73,7 +73,7 @@ router.post("/register", AuthController.register);
  * /auth/login:
  *   post:
  *     summary: Login user
- *     description: Authenticates a user and returns access and refresh tokens
+ *     description: Authenticates a user and returns an access token. A refresh token is stored in an HTTP-only cookie.
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -82,14 +82,18 @@ router.post("/register", AuthController.register);
  *           schema:
  *             type: object
  *             required:
- *               - email
+ *               - password
  *               - password
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
- *                 description: User email address
+ *                 description: User email address (optional if username is provided)
  *                 example: "user@example.com"
+ *               username:
+ *                 type: string
+ *                 description: Username (optional if email is provided)
+ *                 example: "testuser"
  *               password:
  *                 type: string
  *                 description: User password
@@ -106,16 +110,12 @@ router.post("/register", AuthController.register);
  *                   type: string
  *                   description: JWT access token
  *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *                 refreshToken:
- *                   type: string
- *                   description: JWT refresh token
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *                 _id:
  *                   type: string
  *                   description: User ID
  *                   example: "507f1f77bcf86cd799439011"
  *       400:
- *         description: Bad request - Missing email or password
+ *         description: Bad request - Missing username/email or password
  *         content:
  *           application/json:
  *             schema:
@@ -152,7 +152,7 @@ router.post("/login", AuthController.login);
  * /auth/google:
  *   post:
  *     summary: Login/register using Google
- *     description: Verifies a Google ID token and returns access and refresh tokens
+ *     description: Verifies a Google ID token and returns an access token. A refresh token is stored in an HTTP-only cookie.
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -181,7 +181,7 @@ router.post("/google", AuthController.googleLogin);
  * /auth/refresh:
  *   post:
  *     summary: Refresh access token
- *     description: Generates new access and refresh tokens using a valid refresh token
+ *     description: Generates a new access token using a valid refresh token from an HTTP-only cookie (or request body).
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -189,12 +189,10 @@ router.post("/google", AuthController.googleLogin);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - refreshToken
  *             properties:
  *               refreshToken:
  *                 type: string
- *                 description: Valid refresh token
+ *                 description: Optional refresh token (if cookie is not used)
  *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *     responses:
  *       200:
@@ -207,10 +205,6 @@ router.post("/google", AuthController.googleLogin);
  *                 accessToken:
  *                   type: string
  *                   description: New JWT access token
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *                 refreshToken:
- *                   type: string
- *                   description: New JWT refresh token
  *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *                 _id:
  *                   type: string
@@ -252,12 +246,10 @@ router.post("/refresh", AuthController.refresh);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - refreshToken
  *             properties:
  *               refreshToken:
  *                 type: string
- *                 description: Valid refresh token to invalidate
+ *                 description: Optional refresh token to invalidate (if cookie is not used)
  *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *     responses:
  *       200:
