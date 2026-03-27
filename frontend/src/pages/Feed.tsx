@@ -1,255 +1,49 @@
-import {
-  Box,
-  Typography,
-  IconButton,
-  Button,
-  BottomNavigation,
-  BottomNavigationAction,
-  Paper,
-} from "@mui/material";
-import {
-  HomeOutlined,
-  AddCircleOutline,
-  PersonOutlined,
-  LogoutOutlined,
-  LanguageOutlined,
-  StarOutlined,
-  Add,
-} from "@mui/icons-material";
-import { useState } from "react";
+import { Box } from "@mui/material";
+import { LanguageOutlined, StarOutlined } from "@mui/icons-material";
+import React from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import PageTopBar from "../components/PageTopBar";
+import EmptyStateView from "../components/EmptyStateView";
+import AppBottomNav from "../components/AppBottomNav";
 
-const NAV_ROUTES = ["/", "/feed", "/create", "/profile"];
-
-export default function Feed() {
-  const [navValue, setNavValue] = useState(1); // Feed is active
+const Feed: React.FC = () => {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    try {
-      await logout();
-    } finally {
-      navigate("/login");
-    }
+    try { await logout(); } finally { navigate("/login"); }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        bgcolor: "#F7F7FB",
-        display: "flex",
-        flexDirection: "column",
-        fontFamily: "'Inter', 'Roboto', sans-serif",
-        pb: "70px",
-      }}
-    >
-      {/* Top Bar */}
-      <Box
-        sx={{
-          bgcolor: "#fff",
-          px: 2,
-          py: 1.5,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          borderBottom: "1px solid #F0F0F0",
-        }}
-      >
-        {/* Globe icon */}
-        <Box
-          sx={{
-            bgcolor: "#6344F5",
-            borderRadius: "10px",
-            width: 36,
-            height: 36,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <LanguageOutlined sx={{ color: "#fff", fontSize: 20 }} />
-        </Box>
-
-        {/* Title */}
-        <Box sx={{ textAlign: "center" }}>
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 700, color: "#1A1A2E", fontSize: "1rem", lineHeight: 1.2 }}
-          >
-            Global Feed
-          </Typography>
-          <Typography sx={{ color: "#9E9EB0", fontSize: "0.75rem" }}>
-            0 reviews
-          </Typography>
-        </Box>
-
-        {/* Logout */}
-        <IconButton onClick={handleLogout} sx={{ color: "#9E9EB0" }} size="small">
-          <LogoutOutlined fontSize="small" />
-        </IconButton>
-      </Box>
-
-      {/* Main Content — Empty State */}
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 3,
-          gap: 3,
-        }}
-      >
-        {/* Illustration circle with badge */}
-        <Box sx={{ position: "relative", width: 160, height: 160 }}>
-          <Box
-            sx={{
-              width: 160,
-              height: 160,
-              borderRadius: "50%",
-              bgcolor: "#EDE9FF",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <LanguageOutlined sx={{ fontSize: 72, color: "#6344F5" }} />
+    <Box sx={{ minHeight: "100vh", bgcolor: "#F7F7FB", display: "flex", flexDirection: "column", pb: "70px" }}>
+      <PageTopBar
+        icon={<LanguageOutlined sx={{ color: "#fff", fontSize: 20 }} />}
+        iconBg="#6344F5"
+        title="Global Feed"
+        subtitle="0 reviews"
+        onLogout={handleLogout}
+      />
+      <EmptyStateView
+        illustration={
+          <Box sx={{ position: "relative", width: 160, height: 160 }}>
+            <Box sx={{ width: 160, height: 160, borderRadius: "50%", bgcolor: "#EDE9FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <LanguageOutlined sx={{ fontSize: 72, color: "#6344F5" }} />
+            </Box>
+            <Box sx={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: "50%", bgcolor: "#F5A623", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(245,166,35,0.5)" }}>
+              <StarOutlined sx={{ fontSize: 16, color: "#fff" }} />
+            </Box>
           </Box>
-          {/* Gold badge */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 10,
-              right: 10,
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              bgcolor: "#F5A623",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 2px 6px rgba(245,166,35,0.5)",
-            }}
-          >
-            <StarOutlined sx={{ fontSize: 16, color: "#fff" }} />
-          </Box>
-        </Box>
-
-        {/* Heading */}
-        <Typography
-          variant="h5"
-          sx={{ fontWeight: 700, color: "#1A1A2E", textAlign: "center", fontSize: "1.3rem" }}
-        >
-          No Reviews in Feed
-        </Typography>
-
-        {/* Description */}
-        <Typography
-          sx={{
-            color: "#9E9EB0",
-            textAlign: "center",
-            fontSize: "0.9rem",
-            lineHeight: 1.7,
-            maxWidth: 300,
-          }}
-        >
-          The community feed is empty. Be the first to share a hotel review and
-          inspire other travelers!
-        </Typography>
-
-        {/* CTA Button */}
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate("/create")}
-          sx={{
-            bgcolor: "#6344F5",
-            borderRadius: "50px",
-            px: 4,
-            py: 1.5,
-            textTransform: "none",
-            fontWeight: 600,
-            fontSize: "0.95rem",
-            boxShadow: "0 4px 16px rgba(99, 68, 245, 0.35)",
-            "&:hover": { bgcolor: "#512DC8" },
-          }}
-        >
-          Share First Review
-        </Button>
-      </Box>
-
-      {/* Bottom Navigation */}
-      <Paper
-        elevation={0}
-        sx={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          borderTop: "1px solid #EBEBF0",
-        }}
-      >
-        <BottomNavigation
-          value={navValue}
-          onChange={(_, newValue) => {
-            setNavValue(newValue);
-            navigate(NAV_ROUTES[newValue]);
-          }}
-          sx={{ bgcolor: "#fff", height: 64 }}
-        >
-          <BottomNavigationAction
-            label="Home"
-            icon={<HomeOutlined />}
-            sx={{
-              "&.Mui-selected": { color: "#6344F5" },
-              color: "#9E9EB0",
-              minWidth: 60,
-            }}
-          />
-          <BottomNavigationAction
-            label="Feed"
-            icon={<LanguageOutlined />}
-            sx={{
-              "&.Mui-selected": { color: "#6344F5" },
-              "&.Mui-selected .MuiBottomNavigationAction-label": {
-                fontSize: "0.7rem",
-                fontWeight: 600,
-              },
-              "& .MuiBottomNavigationAction-wrapper": {
-                bgcolor: navValue === 1 ? "#EDE9FF" : "transparent",
-                borderRadius: "12px",
-                px: 1.5,
-                py: 0.5,
-              },
-              color: "#9E9EB0",
-              minWidth: 60,
-            }}
-          />
-          <BottomNavigationAction
-            label="Add"
-            icon={<AddCircleOutline />}
-            sx={{
-              "&.Mui-selected": { color: "#6344F5" },
-              color: "#9E9EB0",
-              minWidth: 60,
-            }}
-          />
-          <BottomNavigationAction
-            label="Profile"
-            icon={<PersonOutlined />}
-            sx={{
-              "&.Mui-selected": { color: "#6344F5" },
-              color: "#9E9EB0",
-              minWidth: 60,
-            }}
-          />
-        </BottomNavigation>
-      </Paper>
+        }
+        heading="No Reviews in Feed"
+        description="The community feed is empty. Be the first to share a hotel review and inspire other travelers!"
+        ctaLabel="Share First Review"
+        onCtaClick={() => navigate("/create")}
+      />
+      <AppBottomNav activeIndex={1} />
     </Box>
   );
-}
+};
+
+export default Feed;
 

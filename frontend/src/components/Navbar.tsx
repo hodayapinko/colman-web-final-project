@@ -1,7 +1,8 @@
+import React from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-export default function Navbar() {
+const Navbar: React.FC = () => {
   const { user, logout, isAuthenticated } = useAuth();
 
   const handleLogout = async () => {
@@ -41,4 +42,6 @@ export default function Navbar() {
       </div>
     </nav>
   );
-}
+};
+
+export default Navbar;

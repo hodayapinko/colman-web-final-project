@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import React, { useEffect, useState, type FormEvent } from "react";
 import { useParams, Link } from "react-router-dom";
 import { postService, type Post } from "../services/postService";
 import {
@@ -7,7 +7,7 @@ import {
 } from "../services/commentService";
 import { useAuth } from "../context/AuthContext";
 
-export default function PostPage() {
+const PostPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [post, setPost] = useState<Post | null>(null);
@@ -102,4 +102,6 @@ export default function PostPage() {
       </section>
     </div>
   );
-}
+};
+
+export default PostPage;
