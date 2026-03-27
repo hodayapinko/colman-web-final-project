@@ -1,3 +1,4 @@
+import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Feed from "./pages/Feed";
@@ -8,7 +9,7 @@ import Register from "./pages/Register";
 import Reviews from "./pages/Reviews";
 import "./App.css";
 
-function App() {
+const App: React.FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -23,6 +24,6 @@ function App() {
       </AuthProvider>
     </BrowserRouter>
   );
-}
+};
 
 export default App;

@@ -1,9 +1,9 @@
-import { useState, useRef, type FormEvent } from "react";
+import React, { useState, useRef, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { postService } from "../services/postService";
 import { useAuth } from "../context/AuthContext";
 
-export default function CreatePost() {
+const CreatePost: React.FC = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -88,4 +88,6 @@ export default function CreatePost() {
       </form>
     </div>
   );
-}
+};
+
+export default CreatePost;

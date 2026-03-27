@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from "react";
+import React, { useState, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 
-export default function Register() {
+const Register: React.FC = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,4 +57,6 @@ export default function Register() {
       </div>
     </div>
   );
-}
+};
+
+export default Register;
