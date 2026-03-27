@@ -30,6 +30,9 @@ export default function Feed() {
         <div className="post-list">
           {posts.map((post) => (
             <Link to={`/post/${post._id}`} key={post._id} className="post-card">
+              {post.image && (
+                <img src={post.image} alt={post.title} className="post-card-image" />
+              )}
               <h2>{post.title}</h2>
               <p>{post.content.substring(0, 150)}...</p>
               <span className="post-date">

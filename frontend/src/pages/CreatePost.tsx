@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useRef, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { postService } from "../services/postService";
 import { useAuth } from "../context/AuthContext";
@@ -6,19 +6,39 @@ import { useAuth } from "../context/AuthContext";
 export default function CreatePost() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user) return;
     setError("");
+    setUploading(true);
     try {
-      await postService.create({ title, content, userId: user._id });
+      let imageUrl: string | undefined;
+      if (imageFile) {
+        imageUrl = await postService.uploadImage(imageFile);
+      }
+      await postService.create({ title, content, userId: user._id, image: imageUrl });
       navigate("/");
-    } catch {
-      setError("Failed to create post. Make sure content is at least 10 characters.");
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to create post.";
+      setError(msg);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -51,8 +71,19 @@ export default function CreatePost() {
           minLength={10}
           rows={8}
         />
-        <button type="submit" className="btn btn-primary">
-          Publish
+        <div className="image-upload">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            ref={fileInputRef}
+          />
+          {imagePreview && (
+            <img src={imagePreview} alt="Preview" className="image-preview" />
+          )}
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={uploading}>
+          {uploading ? "Publishing..." : "Publish"}
         </button>
       </form>
     </div>

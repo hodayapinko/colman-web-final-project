@@ -55,6 +55,9 @@ export default function PostPage() {
         <span className="post-date">
           {new Date(post.createdAt).toLocaleDateString()}
         </span>
+        {post.image && (
+          <img src={post.image} alt={post.title} className="post-full-image" />
+        )}
         <div className="post-content">{post.content}</div>
       </article>
 

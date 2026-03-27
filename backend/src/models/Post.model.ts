@@ -16,6 +16,10 @@ const postSchema = new Schema<IPost>(
       trim: true,
       minlength: [10, "Content must be at least 10 characters"],
     },
+    image: {
+      type: String,
+      trim: true,
+    },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
