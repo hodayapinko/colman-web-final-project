@@ -12,9 +12,9 @@ import {
   AddCircleOutline,
   PersonOutlined,
   LogoutOutlined,
-  LanguageOutlined,
-  StarOutlined,
+  StarOutline,
   Add,
+  LanguageOutlined,
 } from "@mui/icons-material";
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
@@ -22,8 +22,8 @@ import { useNavigate } from "react-router-dom";
 
 const NAV_ROUTES = ["/", "/feed", "/create", "/profile"];
 
-export default function Feed() {
-  const [navValue, setNavValue] = useState(1); // Feed is active
+export default function Reviews() {
+  const [navValue, setNavValue] = useState(0);
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -58,10 +58,10 @@ export default function Feed() {
           borderBottom: "1px solid #F0F0F0",
         }}
       >
-        {/* Globe icon */}
+        {/* Home icon */}
         <Box
           sx={{
-            bgcolor: "#6344F5",
+            bgcolor: "#EDE9FF",
             borderRadius: "10px",
             width: 36,
             height: 36,
@@ -70,7 +70,7 @@ export default function Feed() {
             justifyContent: "center",
           }}
         >
-          <LanguageOutlined sx={{ color: "#fff", fontSize: 20 }} />
+          <HomeOutlined sx={{ color: "#6344F5", fontSize: 20 }} />
         </Box>
 
         {/* Title */}
@@ -79,7 +79,7 @@ export default function Feed() {
             variant="h6"
             sx={{ fontWeight: 700, color: "#1A1A2E", fontSize: "1rem", lineHeight: 1.2 }}
           >
-            Global Feed
+            My Reviews
           </Typography>
           <Typography sx={{ color: "#9E9EB0", fontSize: "0.75rem" }}>
             0 reviews
@@ -104,39 +104,19 @@ export default function Feed() {
           gap: 3,
         }}
       >
-        {/* Illustration circle with badge */}
-        <Box sx={{ position: "relative", width: 160, height: 160 }}>
-          <Box
-            sx={{
-              width: 160,
-              height: 160,
-              borderRadius: "50%",
-              bgcolor: "#EDE9FF",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <LanguageOutlined sx={{ fontSize: 72, color: "#6344F5" }} />
-          </Box>
-          {/* Gold badge */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 10,
-              right: 10,
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              bgcolor: "#F5A623",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 2px 6px rgba(245,166,35,0.5)",
-            }}
-          >
-            <StarOutlined sx={{ fontSize: 16, color: "#fff" }} />
-          </Box>
+        {/* Illustration circle */}
+        <Box
+          sx={{
+            width: 160,
+            height: 160,
+            borderRadius: "50%",
+            bgcolor: "#EDE9FF",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <StarOutline sx={{ fontSize: 72, color: "#6344F5", strokeWidth: 1 }} />
         </Box>
 
         {/* Heading */}
@@ -144,7 +124,7 @@ export default function Feed() {
           variant="h5"
           sx={{ fontWeight: 700, color: "#1A1A2E", textAlign: "center", fontSize: "1.3rem" }}
         >
-          No Reviews in Feed
+          No Reviews Yet
         </Typography>
 
         {/* Description */}
@@ -157,8 +137,8 @@ export default function Feed() {
             maxWidth: 300,
           }}
         >
-          The community feed is empty. Be the first to share a hotel review and
-          inspire other travelers!
+          Start your journey by sharing your first hotel experience. Your reviews
+          help others make better travel decisions!
         </Typography>
 
         {/* CTA Button */}
@@ -178,7 +158,7 @@ export default function Feed() {
             "&:hover": { bgcolor: "#512DC8" },
           }}
         >
-          Share First Review
+          Add Your First Review
         </Button>
       </Box>
 
@@ -206,7 +186,16 @@ export default function Feed() {
             icon={<HomeOutlined />}
             sx={{
               "&.Mui-selected": { color: "#6344F5" },
-              color: "#9E9EB0",
+              "&.Mui-selected .MuiBottomNavigationAction-label": {
+                fontSize: "0.7rem",
+                fontWeight: 600,
+              },
+              "& .MuiBottomNavigationAction-wrapper": {
+                bgcolor: navValue === 0 ? "#EDE9FF" : "transparent",
+                borderRadius: "12px",
+                px: 1.5,
+                py: 0.5,
+              },
               minWidth: 60,
             }}
           />
@@ -215,16 +204,6 @@ export default function Feed() {
             icon={<LanguageOutlined />}
             sx={{
               "&.Mui-selected": { color: "#6344F5" },
-              "&.Mui-selected .MuiBottomNavigationAction-label": {
-                fontSize: "0.7rem",
-                fontWeight: 600,
-              },
-              "& .MuiBottomNavigationAction-wrapper": {
-                bgcolor: navValue === 1 ? "#EDE9FF" : "transparent",
-                borderRadius: "12px",
-                px: 1.5,
-                py: 0.5,
-              },
               color: "#9E9EB0",
               minWidth: 60,
             }}
@@ -252,4 +231,3 @@ export default function Feed() {
     </Box>
   );
 }
-

@@ -84,10 +84,11 @@ export const getPostById = async (req: Request, res: Response): Promise<void> =>
 
 export const createPost = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, content, userId } = req.body as {
+    const { title, content, userId, image } = req.body as {
       title: string;
       content: string;
       userId: string;
+      image?: string;
     };
 
     if (!title || !content || !userId) {
@@ -119,6 +120,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     const newPost = new Post({
       title,
       content,
+      image,
       user: userId,
     });
 

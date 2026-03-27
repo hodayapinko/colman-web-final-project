@@ -4,6 +4,7 @@ export interface Post {
   _id: string;
   title: string;
   content: string;
+  image?: string;
   user: string;
   createdAt: string;
   updatedAt: string;
@@ -13,6 +14,7 @@ export interface CreatePostData {
   title: string;
   content: string;
   userId: string;
+  image?: string;
 }
 
 export const postService = {
@@ -34,6 +36,15 @@ export const postService = {
   create: async (data: CreatePostData) => {
     const res = await api.post("/posts", data);
     return res.data;
+  },
+
+  uploadImage: async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post("/file", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data.url;
   },
 
   update: async (id: string, data: Partial<CreatePostData>) => {
