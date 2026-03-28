@@ -20,6 +20,15 @@ const postSchema = new Schema<IPost>(
       type: String,
       trim: true,
     },
+    location: {
+      type: String,
+      trim: true,
+    },
+    rating: {
+      type: Number,
+      min: [1, "Rating must be at least 1"],
+      max: [5, "Rating cannot exceed 5"],
+    },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

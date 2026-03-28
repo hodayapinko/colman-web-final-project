@@ -1,11 +1,19 @@
 import api from "./api";
 
+export interface PostUser {
+  _id: string;
+  username: string;
+  profilePicture?: string;
+}
+
 export interface Post {
   _id: string;
   title: string;
   content: string;
   image?: string;
-  user: string;
+  location?: string;
+  rating?: number;
+  user: string | PostUser;
   createdAt: string;
   updatedAt: string;
 }
@@ -15,6 +23,8 @@ export interface CreatePostData {
   content: string;
   userId: string;
   image?: string;
+  location?: string;
+  rating?: number;
 }
 
 export const postService = {

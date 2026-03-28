@@ -6,7 +6,9 @@ import { findUserById } from "./shared/functions";
 
 export const getAllPosts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const posts = await Post.find();
+    const posts = await Post.find()
+      .populate("user", "username profilePicture")
+      .sort({ createdAt: -1 });
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
@@ -84,11 +86,13 @@ export const getPostById = async (req: Request, res: Response): Promise<void> =>
 
 export const createPost = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, content, userId, image } = req.body as {
+    const { title, content, userId, image, location, rating } = req.body as {
       title: string;
       content: string;
       userId: string;
       image?: string;
+      location?: string;
+      rating?: number;
     };
 
     if (!title || !content || !userId) {
@@ -121,6 +125,8 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       title,
       content,
       image,
+      location,
+      rating,
       user: userId,
     });
 
