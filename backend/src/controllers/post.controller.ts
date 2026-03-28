@@ -159,10 +159,13 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
 export const updatePost = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { title, content, userId } = req.body as Partial<{
+    const { title, content, userId, image, location, rating } = req.body as Partial<{
       title: string;
       content: string;
       userId: string;
+      image: string;
+      location: string;
+      rating: number;
     }>;
 
     // Build update object with only provided fields
@@ -170,10 +173,16 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
       title: string; 
       content: string; 
       user: string;
+      image: string;
+      location: string;
+      rating: number;
     }> = {};
     
     if (title !== undefined) updateData.title = title;
     if (content !== undefined) updateData.content = content;
+    if (image !== undefined && image !== "") updateData.image = image;
+    if (location !== undefined) updateData.location = location;
+    if (rating !== undefined) updateData.rating = rating;
     if (userId !== undefined) {
       if (!mongoose.Types.ObjectId.isValid(userId)) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -196,17 +205,20 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Check if there's at least one field to update
-    if (Object.keys(updateData).length === 0) {
+    if (Object.keys(updateData).length === 0 && image !== "") {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
-        message: "At least one field (title, content, or userId) must be provided for update",
+        message: "At least one field must be provided for update",
       });
       return;
     }
 
     const updatedPost = await Post.findByIdAndUpdate(
       id,
-      updateData,
+      {
+        ...(Object.keys(updateData).length > 0 && { $set: updateData }),
+        ...(image === "" && { $unset: { image: 1 } }),
+      },
       { new: true, runValidators: true }
     );
 

@@ -1,27 +1,46 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
-  Box, Typography, IconButton, TextField, Button, Paper, Rating,
+  Box, Typography, IconButton, TextField, Button, Paper, Rating, CircularProgress,
 } from "@mui/material";
 import {
   ArrowBackOutlined, AddPhotoAlternateOutlined, LocationOnOutlined,
   StarOutlined, ApartmentOutlined,
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { postService } from "../services/postService";
 import { useAuth } from "../context/AuthContext";
 
 const CreatePost: React.FC = () => {
+  const { postId } = useParams<{ postId: string }>();
+  const isEditMode = Boolean(postId);
+
   const [title, setTitle] = useState("");
   const [city, setCity] = useState("");
   const [content, setContent] = useState("");
   const [rating, setRating] = useState<number | null>(0);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [loadingPost, setLoadingPost] = useState(isEditMode);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!postId) return;
+    postService.getById(postId)
+      .then((post) => {
+        setTitle(post.title);
+        setCity(post.location || "");
+        setContent(post.content);
+        setRating(post.rating ?? null);
+        if (post.image) setExistingImageUrl(post.image);
+      })
+      .catch(() => setError("Failed to load review."))
+      .finally(() => setLoadingPost(false));
+  }, [postId]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -46,18 +65,34 @@ const CreatePost: React.FC = () => {
     setUploading(true);
     try {
       let imageUrl: string | undefined;
-      if (imageFile) imageUrl = await postService.uploadImage(imageFile);
-      await postService.create({
-        title,
-        content,
-        userId: user._id,
-        image: imageUrl,
-        location: city,
-        rating: rating || undefined,
-      });
+      if (imageFile) {
+        imageUrl = await postService.uploadImage(imageFile);
+      } else if (isEditMode) {
+        // in edit mode: keep existing URL, or "" to signal removal to the backend
+        imageUrl = existingImageUrl ?? "";
+      }
+
+      if (isEditMode && postId) {
+        await postService.update(postId, {
+          title,
+          content,
+          image: imageUrl,
+          location: city,
+          rating: rating || undefined,
+        });
+      } else {
+        await postService.create({
+          title,
+          content,
+          userId: user._id,
+          image: imageUrl,
+          location: city,
+          rating: rating || undefined,
+        });
+      }
       navigate("/");
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || "Failed to create review.");
+      setError(err?.response?.data?.message || err?.message || (isEditMode ? "Failed to update review." : "Failed to create review."));
     } finally {
       setUploading(false);
     }
@@ -67,6 +102,14 @@ const CreatePost: React.FC = () => {
     return (
       <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Typography>Please login to write a review.</Typography>
+      </Box>
+    );
+  }
+
+  if (loadingPost) {
+    return (
+      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <CircularProgress sx={{ color: "#6344F5" }} />
       </Box>
     );
   }
@@ -89,9 +132,9 @@ const CreatePost: React.FC = () => {
           </Box>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 700, color: "#1A1A2E", lineHeight: 1.2, fontSize: "1rem" }}>
-              Add Hotel Review
+              {isEditMode ? "Edit Review" : "Add Hotel Review"}
             </Typography>
-            <Typography sx={{ fontSize: "0.75rem", color: "#9E9EB0" }}>Share your experience</Typography>
+            <Typography sx={{ fontSize: "0.75rem", color: "#9E9EB0" }}>{isEditMode ? "Update your experience" : "Share your experience"}</Typography>
           </Box>
         </Box>
       </Box>
@@ -138,15 +181,15 @@ const CreatePost: React.FC = () => {
         {/* Image Upload */}
         <Paper
           elevation={0}
-          onClick={() => !imagePreview && fileInputRef.current?.click()}
-          sx={{ borderRadius: 3, border: "1px dashed #C7B9FF", cursor: imagePreview ? "default" : "pointer", overflow: "hidden" }}
+          onClick={() => !imagePreview && !existingImageUrl && fileInputRef.current?.click()}
+          sx={{ borderRadius: 3, border: "1px dashed #C7B9FF", cursor: (imagePreview || existingImageUrl) ? "default" : "pointer", overflow: "hidden" }}
         >
           <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleImageChange} />
-          {imagePreview ? (
+          {imagePreview || existingImageUrl ? (
             <Box sx={{ position: "relative" }}>
-              <Box component="img" src={imagePreview} sx={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }} />
+              <Box component="img" src={imagePreview ?? existingImageUrl!} sx={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }} />
               <Button
-                onClick={handleRemoveImage}
+                onClick={(e) => { handleRemoveImage(e); setExistingImageUrl(null); }}
                 size="small"
                 sx={{
                   position: "absolute", top: 8, right: 8,
@@ -217,7 +260,7 @@ const CreatePost: React.FC = () => {
             "&:hover": { bgcolor: "#512DC8" }, mt: 1, mb: 3,
           }}
         >
-          {uploading ? "Publishing..." : "Submit Review"}
+          {uploading ? (isEditMode ? "Saving..." : "Publishing...") : (isEditMode ? "Save Changes" : "Submit Review")}
         </Button>
       </Box>
     </Box>
