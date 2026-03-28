@@ -53,7 +53,7 @@ const CreatePost: React.FC = () => {
       });
       navigate("/");
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || "Failed to create post.";
+      const msg = err?.response?.data?.message || err?.message || "Failed to create review.";
       setError(msg);
     } finally {
       setUploading(false);

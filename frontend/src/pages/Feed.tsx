@@ -79,14 +79,12 @@ const Feed: React.FC = () => {
               <Paper
                 key={post._id}
                 elevation={0}
-                onClick={() => navigate(`/post/${post._id}`)}
                 sx={{
                   bgcolor: "#fff",
                   borderRadius: 4,
                   p: 2,
                   mb: "20px",
                   boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
-                  cursor: "pointer",
                 }}
               >
                 {/* User row */}
