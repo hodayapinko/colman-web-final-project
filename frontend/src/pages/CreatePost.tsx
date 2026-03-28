@@ -25,6 +25,7 @@ const CreatePost: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [loadingPost, setLoadingPost] = useState(isEditMode);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isSubmittingRef = useRef(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -59,9 +60,11 @@ const CreatePost: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!user) return;
+    if (isSubmittingRef.current) return;
     if (!title.trim()) { setError("Hotel name is required."); return; }
     if (!city.trim()) { setError("City is required."); return; }
     setError("");
+    isSubmittingRef.current = true;
     setUploading(true);
     try {
       let imageUrl: string | undefined;
@@ -95,6 +98,7 @@ const CreatePost: React.FC = () => {
       setError(err?.response?.data?.message || err?.message || (isEditMode ? "Failed to update review." : "Failed to create review."));
     } finally {
       setUploading(false);
+      isSubmittingRef.current = false;
     }
   };
 

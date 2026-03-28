@@ -1,4 +1,6 @@
 import { Request, Response } from "express";
+import fs from "fs";
+import path from "path";
 import Post from "../models/Post.model";
 import { HTTP_STATUS } from "../constants/constants";
 import mongoose from "mongoose";
@@ -213,6 +215,20 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    // If image is being changed or removed, delete the old file from disk
+    const imageIsChanging = image !== undefined && (image === "" || (image !== "" && updateData.image !== undefined));
+    if (imageIsChanging) {
+      const existingPost = await Post.findById(id).select("image");
+      if (existingPost?.image) {
+        // Image URLs look like http://host:port/public/filename.ext — extract the relative path
+        const oldRelative = existingPost.image.replace(/^https?:\/\/[^/]+\//, "");
+        const oldAbsolute = path.join(process.cwd(), oldRelative);
+        if (fs.existsSync(oldAbsolute)) {
+          fs.unlinkSync(oldAbsolute);
+        }
+      }
+    }
+
     const updatedPost = await Post.findByIdAndUpdate(
       id,
       {
@@ -266,6 +282,15 @@ export const deletePost = async (req: Request, res: Response): Promise<void> => 
         message: "Post not found",
       });
       return;
+    }
+
+    // Delete the image file from disk if it exists
+    if (deletedPost.image) {
+      const oldRelative = deletedPost.image.replace(/^https?:\/\/[^/]+\//, "");
+      const oldAbsolute = path.join(process.cwd(), oldRelative);
+      if (fs.existsSync(oldAbsolute)) {
+        fs.unlinkSync(oldAbsolute);
+      }
     }
 
     res.status(HTTP_STATUS.OK).json({
