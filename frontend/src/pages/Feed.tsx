@@ -8,7 +8,7 @@ import { commentService } from "../services/commentService";
 import PageTopBar from "../components/PageTopBar";
 import EmptyStateView from "../components/EmptyStateView";
 import AppBottomNav from "../components/AppBottomNav";
-import FeedPostCard from "../components/FeedPostCard";
+import ReviewCard from "../components/ReviewCard";
 
 const Feed: React.FC = () => {
   const [posts, setPosts] = useState<IPost[]>([]);
@@ -74,9 +74,10 @@ const Feed: React.FC = () => {
           />
         ) : (
           posts.map((post) => (
-            <FeedPostCard
+            <ReviewCard
               key={post._id}
               post={post}
+              mode="feed"
               commentCount={commentCounts[post._id] ?? 0}
             />
           ))
