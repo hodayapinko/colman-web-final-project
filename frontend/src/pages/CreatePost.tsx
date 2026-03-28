@@ -1,21 +1,18 @@
 import React, { useState, useRef } from "react";
 import {
-  Box,
-  Typography,
-  IconButton,
-  TextField,
-  Button,
-  Paper,
-  Rating,
+  Box, Typography, IconButton, TextField, Button, Paper, Rating,
 } from "@mui/material";
-import { ArrowBackOutlined, AddPhotoAlternateOutlined, LocationOnOutlined } from "@mui/icons-material";
+import {
+  ArrowBackOutlined, AddPhotoAlternateOutlined, LocationOnOutlined,
+  StarOutlined, ApartmentOutlined,
+} from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { postService } from "../services/postService";
 import { useAuth } from "../context/AuthContext";
 
 const CreatePost: React.FC = () => {
   const [title, setTitle] = useState("");
-  const [location, setLocation] = useState("");
+  const [city, setCity] = useState("");
   const [content, setContent] = useState("");
   const [rating, setRating] = useState<number | null>(0);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -34,27 +31,33 @@ const CreatePost: React.FC = () => {
     }
   };
 
+  const handleRemoveImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
+    if (!title.trim()) { setError("Hotel name is required."); return; }
+    if (!city.trim()) { setError("City is required."); return; }
     setError("");
     setUploading(true);
     try {
       let imageUrl: string | undefined;
-      if (imageFile) {
-        imageUrl = await postService.uploadImage(imageFile);
-      }
+      if (imageFile) imageUrl = await postService.uploadImage(imageFile);
       await postService.create({
         title,
         content,
         userId: user._id,
         image: imageUrl,
-        location: location || undefined,
+        location: city,
         rating: rating || undefined,
       });
       navigate("/");
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || "Failed to create review.";
-      setError(msg);
+      setError(err?.response?.data?.message || err?.message || "Failed to create review.");
     } finally {
       setUploading(false);
     }
@@ -75,48 +78,92 @@ const CreatePost: React.FC = () => {
         <IconButton onClick={() => navigate(-1)} sx={{ color: "#1A1A2E" }}>
           <ArrowBackOutlined />
         </IconButton>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: "#1A1A2E", flex: 1, textAlign: "center", mr: "40px" }}>
-          Write a Review
-        </Typography>
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", gap: 1.5, ml: 1 }}>
+          <Box sx={{ position: "relative" }}>
+            <Box sx={{ width: 40, height: 40, borderRadius: 2, bgcolor: "#EDE9FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ApartmentOutlined sx={{ color: "#6344F5", fontSize: 22 }} />
+            </Box>
+            <Box sx={{ position: "absolute", top: -4, right: -4, width: 16, height: 16, borderRadius: "50%", bgcolor: "#F5A623", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <StarOutlined sx={{ fontSize: 10, color: "#fff" }} />
+            </Box>
+          </Box>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: "#1A1A2E", lineHeight: 1.2, fontSize: "1rem" }}>
+              Add Hotel Review
+            </Typography>
+            <Typography sx={{ fontSize: "0.75rem", color: "#9E9EB0" }}>Share your experience</Typography>
+          </Box>
+        </Box>
       </Box>
 
       {/* Form */}
-      <Box sx={{ flex: 1, p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+      <Box sx={{ flex: 1, p: 2, display: "flex", flexDirection: "column", gap: 2, pb: 4 }}>
         {error && (
           <Typography sx={{ color: "#d32f2f", fontSize: "0.85rem", px: 1 }}>{error}</Typography>
         )}
 
-        {/* Hotel Name */}
+        {/* Hotel Name + City */}
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #EBEBF0" }}>
-          <Typography variant="caption" sx={{ color: "#9E9EB0", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Hotel Name
-          </Typography>
-          <TextField
-            fullWidth
-            variant="standard"
-            placeholder="e.g. The Plaza Hotel"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            InputProps={{ disableUnderline: true, sx: { fontSize: "1.1rem", fontWeight: 700, color: "#1A1A2E", mt: 0.5 } }}
-          />
-        </Paper>
-
-        {/* Location */}
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #EBEBF0" }}>
-          <Typography variant="caption" sx={{ color: "#9E9EB0", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Location
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
-            <LocationOnOutlined sx={{ color: "#9E9EB0", fontSize: 18, mr: 0.5 }} />
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" sx={{ color: "#9E9EB0", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              Hotel Name <Box component="span" sx={{ color: "#d32f2f" }}>*</Box>
+            </Typography>
             <TextField
               fullWidth
               variant="standard"
-              placeholder="e.g. New York, USA"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              InputProps={{ disableUnderline: true, sx: { color: "#555" } }}
+              placeholder="e.g. The Plaza Hotel"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              InputProps={{ disableUnderline: true, sx: { fontSize: "1rem", fontWeight: 700, color: "#1A1A2E", mt: 0.5 } }}
             />
           </Box>
+          <Box>
+            <Typography variant="caption" sx={{ color: "#9E9EB0", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              City <Box component="span" sx={{ color: "#d32f2f" }}>*</Box>
+            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", mt: 0.5 }}>
+              <LocationOnOutlined sx={{ color: "#9E9EB0", fontSize: 18, mr: 0.5 }} />
+              <TextField
+                fullWidth
+                variant="standard"
+                placeholder="e.g. New York, USA"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                InputProps={{ disableUnderline: true, sx: { color: "#555" } }}
+              />
+            </Box>
+          </Box>
+        </Paper>
+
+        {/* Image Upload */}
+        <Paper
+          elevation={0}
+          onClick={() => !imagePreview && fileInputRef.current?.click()}
+          sx={{ borderRadius: 3, border: "1px dashed #C7B9FF", cursor: imagePreview ? "default" : "pointer", overflow: "hidden" }}
+        >
+          <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleImageChange} />
+          {imagePreview ? (
+            <Box sx={{ position: "relative" }}>
+              <Box component="img" src={imagePreview} sx={{ width: "100%", maxHeight: 200, objectFit: "cover", display: "block" }} />
+              <Button
+                onClick={handleRemoveImage}
+                size="small"
+                sx={{
+                  position: "absolute", top: 8, right: 8,
+                  bgcolor: "#d32f2f", color: "#fff", borderRadius: 2, px: 1.5, py: 0.5,
+                  fontSize: "0.75rem", fontWeight: 700, textTransform: "none", minWidth: "auto",
+                  "&:hover": { bgcolor: "#b71c1c" },
+                }}
+              >
+                Remove
+              </Button>
+            </Box>
+          ) : (
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, py: 3 }}>
+              <AddPhotoAlternateOutlined sx={{ fontSize: 36, color: "#C7B9FF" }} />
+              <Typography sx={{ color: "#9E9EB0", fontSize: "0.85rem" }}>Tap to add a photo</Typography>
+            </Box>
+          )}
         </Paper>
 
         {/* Rating */}
@@ -128,22 +175,18 @@ const CreatePost: React.FC = () => {
             <Rating
               value={rating}
               onChange={(_, val) => setRating(val)}
-              sx={{
-                "& .MuiRating-iconFilled": { color: "#FFD700" },
-                "& .MuiRating-iconEmpty": { color: "#DDD" },
-                fontSize: "2rem",
-              }}
+              sx={{ "& .MuiRating-iconFilled": { color: "#FFD700" }, "& .MuiRating-iconEmpty": { color: "#DDD" }, fontSize: "2rem" }}
             />
-            {rating ? (
-              <Typography sx={{ fontWeight: 700, color: "#1A1A2E" }}>{rating.toFixed(1)}/5</Typography>
-            ) : null}
           </Box>
+          {rating ? (
+            <Typography sx={{ fontSize: "0.8rem", color: "#9E9EB0", mt: 0.5 }}>{rating} out of 5 stars</Typography>
+          ) : null}
         </Paper>
 
-        {/* Review Text */}
+        {/* Description */}
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid #EBEBF0" }}>
           <Typography variant="caption" sx={{ color: "#9E9EB0", fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Your Review
+            Description
           </Typography>
           <TextField
             fullWidth
@@ -153,29 +196,12 @@ const CreatePost: React.FC = () => {
             onChange={(e) => setContent(e.target.value)}
             multiline
             minRows={4}
+            inputProps={{ maxLength: 500 }}
             InputProps={{ disableUnderline: true, sx: { mt: 0.5, color: "#444" } }}
           />
-        </Paper>
-
-        {/* Photo Upload */}
-        <Paper
-          elevation={0}
-          onClick={() => fileInputRef.current?.click()}
-          sx={{ p: 2, borderRadius: 3, border: "1px dashed #C7B9FF", cursor: "pointer" }}
-        >
-          <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleImageChange} />
-          {imagePreview ? (
-            <Box
-              component="img"
-              src={imagePreview}
-              sx={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 2 }}
-            />
-          ) : (
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, py: 2 }}>
-              <AddPhotoAlternateOutlined sx={{ fontSize: 36, color: "#C7B9FF" }} />
-              <Typography sx={{ color: "#9E9EB0", fontSize: "0.85rem" }}>Tap to add a photo</Typography>
-            </Box>
-          )}
+          <Typography sx={{ fontSize: "0.75rem", color: "#9E9EB0", textAlign: "right", mt: 0.5 }}>
+            {content.length}/500
+          </Typography>
         </Paper>
 
         {/* Submit */}
@@ -183,20 +209,15 @@ const CreatePost: React.FC = () => {
           variant="contained"
           onClick={handleSubmit}
           disabled={uploading}
+          fullWidth
           sx={{
-            bgcolor: "#6344F5",
-            borderRadius: "50px",
-            py: 1.5,
-            textTransform: "none",
-            fontWeight: 700,
-            fontSize: "1rem",
+            bgcolor: "#6344F5", borderRadius: "50px", py: 1.5,
+            textTransform: "none", fontWeight: 700, fontSize: "1rem",
             boxShadow: "0 4px 16px rgba(99,68,245,0.35)",
-            "&:hover": { bgcolor: "#512DC8" },
-            mt: 1,
-            mb: 3,
+            "&:hover": { bgcolor: "#512DC8" }, mt: 1, mb: 3,
           }}
         >
-          {uploading ? "Publishing..." : "Publish Review"}
+          {uploading ? "Publishing..." : "Submit Review"}
         </Button>
       </Box>
     </Box>

@@ -1,9 +1,10 @@
-import { Box, Typography, Paper, Avatar, Fab, CircularProgress, Rating } from "@mui/material";
-import { LanguageOutlined, StarOutlined, LocationOnOutlined, Add } from "@mui/icons-material";
+import { Box, Typography, Paper, Avatar, Fab, CircularProgress } from "@mui/material";
+import { LanguageOutlined, StarOutlined, Add, ChatBubbleOutline } from "@mui/icons-material";
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { postService, type Post, type PostUser } from "../services/postService";
+import { commentService } from "../services/commentService";
 import PageTopBar from "../components/PageTopBar";
 import EmptyStateView from "../components/EmptyStateView";
 import AppBottomNav from "../components/AppBottomNav";
@@ -24,12 +25,28 @@ const getPostUser = (post: Post): PostUser | null =>
 const Feed: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const { logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     postService.getAll().then(setPosts).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (posts.length === 0) return;
+    Promise.all(
+      posts.map((p) =>
+        commentService.getByPost(p._id)
+          .then((c) => ({ id: p._id, count: c.length }))
+          .catch(() => ({ id: p._id, count: 0 }))
+      )
+    ).then((results) => {
+      const counts: Record<string, number> = {};
+      results.forEach(({ id, count }) => { counts[id] = count; });
+      setCommentCounts(counts);
+    });
+  }, [posts]);
 
   const handleLogout = async () => {
     try { await logout(); } finally { navigate("/login"); }
@@ -74,95 +91,89 @@ const Feed: React.FC = () => {
             const avatarSrc = postUser?.profilePicture
               ? `http://localhost:3000/public/${postUser.profilePicture}`
               : undefined;
+            const count = commentCounts[post._id] ?? 0;
 
             return (
               <Paper
                 key={post._id}
                 elevation={0}
-                sx={{
-                  bgcolor: "#fff",
-                  borderRadius: 4,
-                  p: 2,
-                  mb: "20px",
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
-                }}
+                sx={{ bgcolor: "#fff", borderRadius: 4, mb: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", overflow: "hidden" }}
               >
-                {/* User row */}
-                <Box sx={{ display: "flex", alignItems: "center", mb: 1.5 }}>
-                  <Avatar
-                    src={avatarSrc}
-                    sx={{ width: 42, height: 42, mr: 1.5, bgcolor: "#6344F5", fontSize: "0.9rem" }}
-                  >
-                    {username[0]?.toUpperCase()}
-                  </Avatar>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: "0.9rem", color: "#1A1A2E", lineHeight: 1.2 }}>
-                      {username}
-                    </Typography>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#9E9EB0" }}>Traveler</Typography>
-                  </Box>
-                  <Typography sx={{ fontSize: "0.75rem", color: "#9E9EB0" }}>
-                    {timeAgo(post.createdAt)}
-                  </Typography>
-                </Box>
-
-                {/* Hotel name */}
-                <Typography sx={{ fontWeight: 800, fontSize: "1.15rem", color: "#1A1A2E", mb: 0.5 }}>
-                  {post.title}
-                </Typography>
-
-                {/* Location */}
-                {post.location && (
-                  <Box sx={{ display: "flex", alignItems: "center", mb: 0.75 }}>
-                    <LocationOnOutlined sx={{ fontSize: 14, color: "#9E9EB0", mr: 0.25 }} />
-                    <Typography sx={{ fontSize: "0.8rem", color: "#9E9EB0" }}>{post.location}</Typography>
-                  </Box>
-                )}
-
-                {/* Rating */}
-                {post.rating != null && (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-                    <Rating
-                      value={post.rating}
-                      readOnly
-                      precision={0.5}
-                      sx={{
-                        "& .MuiRating-iconFilled": { color: "#FFD700" },
-                        "& .MuiRating-iconEmpty": { color: "#DDD" },
-                        fontSize: "1.1rem",
-                      }}
-                    />
-                    <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: "#1A1A2E" }}>
-                      {post.rating.toFixed(1)}/5
-                    </Typography>
-                  </Box>
-                )}
-
-                {/* Review snippet */}
-                <Typography
-                  sx={{
-                    fontSize: "0.88rem",
-                    color: "#444",
-                    lineHeight: 1.6,
-                    mb: post.image ? 1.5 : 0,
-                    overflow: "hidden",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: "vertical",
-                  }}
-                >
-                  {post.content}
-                </Typography>
-
-                {/* Image */}
+                {/* Top image with rating badge */}
                 {post.image && (
-                  <Box
-                    component="img"
-                    src={post.image.startsWith("http") ? post.image : `http://localhost:3000/${post.image}`}
-                    alt={post.title}
-                    sx={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 2 }}
-                  />
+                  <Box sx={{ position: "relative" }}>
+                    <Box
+                      component="img"
+                      src={post.image.startsWith("http") ? post.image : `http://localhost:3000/${post.image}`}
+                      alt={post.title}
+                      sx={{ width: "100%", height: 180, objectFit: "cover", display: "block" }}
+                    />
+                    {post.rating != null && (
+                      <Box sx={{
+                        position: "absolute", top: 10, right: 10,
+                        bgcolor: "#fff", borderRadius: 2, px: 1, py: 0.5,
+                        display: "flex", alignItems: "center", gap: 0.5,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                      }}>
+                        <StarOutlined sx={{ fontSize: 14, color: "#FFD700" }} />
+                        <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: "#1A1A2E" }}>{post.rating}</Typography>
+                      </Box>
+                    )}
+                  </Box>
                 )}
+
+                {/* Body */}
+                <Box sx={{ p: 2 }}>
+                  {/* User row */}
+                  <Box sx={{ display: "flex", alignItems: "center", mb: 1.25 }}>
+                    <Avatar
+                      src={avatarSrc}
+                      sx={{ width: 36, height: 36, mr: 1.25, bgcolor: "#6344F5", fontSize: "0.85rem" }}
+                    >
+                      {username[0]?.toUpperCase()}
+                    </Avatar>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography sx={{ fontWeight: 700, fontSize: "0.85rem", color: "#1A1A2E", lineHeight: 1.2 }}>
+                        {username}
+                      </Typography>
+                      <Typography sx={{ fontSize: "0.7rem", color: "#9E9EB0" }}>{timeAgo(post.createdAt)}</Typography>
+                    </Box>
+                    {post.rating != null && !post.image && (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <StarOutlined sx={{ fontSize: 14, color: "#FFD700" }} />
+                        <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: "#1A1A2E" }}>{post.rating}</Typography>
+                      </Box>
+                    )}
+                  </Box>
+
+                  <Typography sx={{ fontWeight: 800, fontSize: "1.05rem", color: "#1A1A2E", mb: 0.25 }}>{post.title}</Typography>
+                  {post.location && (
+                    <Typography sx={{ fontSize: "0.8rem", color: "#9E9EB0", mb: 0.75 }}>{post.location}</Typography>
+                  )}
+                  {post.content && (
+                    <Typography sx={{
+                      fontSize: "0.88rem", color: "#444", lineHeight: 1.6, mb: 1.25,
+                      overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical",
+                    }}>
+                      {post.content}
+                    </Typography>
+                  )}
+
+                  {/* Comment button */}
+                  <Box
+                    onClick={() => navigate(`/comments/${post._id}`)}
+                    sx={{
+                      display: "inline-flex", alignItems: "center", gap: 0.75,
+                      bgcolor: "#F4F1FF", borderRadius: 2, px: 1.5, py: 0.75,
+                      cursor: "pointer", "&:hover": { bgcolor: "#EDE9FF" },
+                    }}
+                  >
+                    <ChatBubbleOutline sx={{ fontSize: 16, color: "#6344F5" }} />
+                    <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#6344F5" }}>
+                      {count} {count === 1 ? "Comment" : "Comments"}
+                    </Typography>
+                  </Box>
+                </Box>
               </Paper>
             );
           })
@@ -183,4 +194,3 @@ const Feed: React.FC = () => {
 };
 
 export default Feed;
-

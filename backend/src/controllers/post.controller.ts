@@ -241,3 +241,32 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
     });
   }
 };
+
+export const deletePost = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const deletedPost = await Post.findByIdAndDelete(id);
+
+    if (!deletedPost) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        success: false,
+        message: "Post not found",
+      });
+      return;
+    }
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: "Post deleted successfully",
+      data: deletedPost,
+    });
+  } catch (error: any) {
+    console.error("Error deleting post:", error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};

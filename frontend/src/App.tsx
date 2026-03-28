@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Feed from "./pages/Feed";
+import PostPage from "./pages/PostPage";
 import CreatePost from "./pages/CreatePost";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -15,6 +16,7 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/" element={<Reviews />} />
           <Route path="/feed" element={<Feed />} />
+          <Route path="/comments/:postId" element={<PostPage />} />
           <Route path="/create" element={<CreatePost />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
