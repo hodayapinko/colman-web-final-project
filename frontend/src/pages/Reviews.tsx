@@ -12,11 +12,11 @@ const Reviews: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [posts, setPosts] = useState<IPost[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-    postService.getByUser(user._id).then(setPosts).finally(() => setLoading(false));
+    postService.getByUser(user._id).then(setPosts).finally(() => setIsLoading(false));
   }, [user]);
 
   const handleDelete = async (id: string) => {
@@ -38,7 +38,7 @@ const Reviews: React.FC = () => {
         onLogout={handleLogout}
       />
       <Box sx={{ flex: 1, px: 2, pt: 2 }}>
-        {loading ? (
+        {isLoading ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
             <CircularProgress sx={{ color: "#6344F5" }} />
           </Box>
