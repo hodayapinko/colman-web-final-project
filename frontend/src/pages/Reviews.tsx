@@ -3,7 +3,7 @@ import { HomeOutlined, StarOutlined, EditOutlined, DeleteOutlined } from "@mui/i
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { postService, type Post } from "../services/postService";
+import { postService, type IPost } from "../services/postService";
 import PageTopBar from "../components/PageTopBar";
 import EmptyStateView from "../components/EmptyStateView";
 import AppBottomNav from "../components/AppBottomNav";
@@ -11,7 +11,7 @@ import AppBottomNav from "../components/AppBottomNav";
 const Reviews: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<IPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

@@ -4,19 +4,19 @@ import {
   Box, Typography, Avatar, IconButton, TextField, Paper, CircularProgress,
 } from "@mui/material";
 import { ArrowBackOutlined, StarOutlined, SendOutlined, DeleteOutlined } from "@mui/icons-material";
-import { postService, type Post, type PostUser } from "../services/postService";
-import { commentService, type Comment as IComment } from "../services/commentService";
+import { postService, type IPost, type IPostUser } from "../services/postService";
+import { commentService, type IComment } from "../services/commentService";
 import { useAuth } from "../context/AuthContext";
 import AppBottomNav from "../components/AppBottomNav";
 
-const getPostUser = (post: Post): PostUser | null =>
-  post.user && typeof post.user === "object" ? (post.user as PostUser) : null;
+const getPostUser = (post: IPost): IPostUser | null =>
+  post.user && typeof post.user === "object" ? (post.user as IPostUser) : null;
 
 const PostPage: React.FC = () => {
   const { postId: id } = useParams<{ postId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [post, setPost] = useState<Post | null>(null);
+  const [post, setPost] = useState<IPost | null>(null);
   const [comments, setComments] = useState<IComment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(true);

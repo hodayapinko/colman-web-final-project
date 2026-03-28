@@ -3,7 +3,7 @@ import { LanguageOutlined, StarOutlined, Add, ChatBubbleOutline } from "@mui/ico
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { postService, type Post, type PostUser } from "../services/postService";
+import { postService, type IPost, type IPostUser } from "../services/postService";
 import { commentService } from "../services/commentService";
 import PageTopBar from "../components/PageTopBar";
 import EmptyStateView from "../components/EmptyStateView";
@@ -19,11 +19,11 @@ const timeAgo = (dateStr: string): string => {
   return `${Math.floor(hrs / 24)} day${Math.floor(hrs / 24) !== 1 ? "s" : ""} ago`;
 };
 
-const getPostUser = (post: Post): PostUser | null =>
-  post.user && typeof post.user === "object" ? (post.user as PostUser) : null;
+const getPostUser = (post: IPost): IPostUser | null =>
+  post.user && typeof post.user === "object" ? (post.user as IPostUser) : null;
 
 const Feed: React.FC = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<IPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const { logout } = useAuth();
