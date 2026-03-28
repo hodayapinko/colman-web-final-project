@@ -12,7 +12,7 @@ import AppBottomNav from "../components/AppBottomNav";
 const getPostUser = (post: IPost): IPostUser | null =>
   post.user && typeof post.user === "object" ? (post.user as IPostUser) : null;
 
-const PostPage: React.FC = () => {
+const CommentsPage: React.FC = () => {
   const { postId: id } = useParams<{ postId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -200,4 +200,4 @@ const PostPage: React.FC = () => {
   );
 };
 
-export default PostPage;
+export default CommentsPage;
