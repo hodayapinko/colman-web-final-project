@@ -7,7 +7,7 @@ import { postService, type IPost } from "../services/postService";
 import PageTopBar from "../components/PageTopBar";
 import EmptyStateView from "../components/EmptyStateView";
 import AppBottomNav from "../components/AppBottomNav";
-import MyReviewCard from "../components/MyReviewCard";
+import ReviewCard from "../components/ReviewCard";
 
 const Reviews: React.FC = () => {
   const { user, logout } = useAuth();
@@ -57,9 +57,10 @@ const Reviews: React.FC = () => {
           />
         ) : (
           posts.map((post) => (
-            <MyReviewCard
+            <ReviewCard
               key={post._id}
               post={post}
+              mode="mine"
               onEdit={(id) => navigate(`/edit/${id}`)}
               onDelete={handleDelete}
             />
