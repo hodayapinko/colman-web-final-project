@@ -1,20 +1,24 @@
 import React from "react";
 import { Box, Typography, IconButton } from "@mui/material";
-import { LogoutOutlined } from "@mui/icons-material";
+import { LogoutOutlined, ArrowBackOutlined } from "@mui/icons-material";
 
 interface PageTopBarProps {
-  icon: React.ReactNode;
-  iconBg?: string;
   title: string;
   subtitle?: string;
-  onLogout: () => void;
+  // Left side: back button OR icon (icon takes precedence when onBack is absent)
+  onBack?: () => void;
+  icon?: React.ReactNode;
+  iconBg?: string;
+  // Right side: optional logout
+  onLogout?: () => void;
 }
 
 const PageTopBar: React.FC<PageTopBarProps> = ({
-  icon,
-  iconBg = "#EDE9FF",
   title,
   subtitle,
+  onBack,
+  icon,
+  iconBg = "#EDE9FF",
   onLogout,
 }) => (
   <Box
@@ -28,20 +32,28 @@ const PageTopBar: React.FC<PageTopBarProps> = ({
       borderBottom: "1px solid #F0F0F0",
     }}
   >
-    <Box
-      sx={{
-        bgcolor: iconBg,
-        borderRadius: "10px",
-        width: 36,
-        height: 36,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      {icon}
-    </Box>
+    {/* Left side */}
+    {onBack ? (
+      <IconButton onClick={onBack} sx={{ color: "#1A1A2E" }} size="small">
+        <ArrowBackOutlined />
+      </IconButton>
+    ) : (
+      <Box
+        sx={{
+          bgcolor: iconBg,
+          borderRadius: "10px",
+          width: 36,
+          height: 36,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {icon}
+      </Box>
+    )}
 
+    {/* Center */}
     <Box sx={{ textAlign: "center" }}>
       <Typography
         variant="h6"
@@ -56,9 +68,14 @@ const PageTopBar: React.FC<PageTopBarProps> = ({
       )}
     </Box>
 
-    <IconButton onClick={onLogout} sx={{ color: "#9E9EB0" }} size="small">
-      <LogoutOutlined fontSize="small" />
-    </IconButton>
+    {/* Right side */}
+    {onLogout ? (
+      <IconButton onClick={onLogout} sx={{ color: "#9E9EB0" }} size="small">
+        <LogoutOutlined fontSize="small" />
+      </IconButton>
+    ) : (
+      <Box sx={{ width: 34 }} /> /* spacer to keep title centered */
+    )}
   </Box>
 );
 

@@ -26,6 +26,8 @@ export interface IPost extends Document {
   title: string;
   content: string;
   image?: string;
+  location?: string;
+  rating?: number;
   user: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

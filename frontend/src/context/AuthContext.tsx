@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { authService, type LoginData, type RegisterData } from "../services/authService";
+import { authService, type ILoginData, type IRegisterData } from "../services/authService";
 
 interface User {
   _id: string;
@@ -9,8 +9,8 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (data: LoginData) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  login: (data: ILoginData) => Promise<void>;
+  register: (data: IRegisterData) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -28,7 +28,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const login = async (data: LoginData) => {
+  const login = async (data: ILoginData) => {
     const res = await authService.login(data);
     localStorage.setItem("accessToken", res.accessToken);
     localStorage.setItem("refreshToken", res.refreshToken);
@@ -36,7 +36,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser({ _id: res._id });
   };
 
-  const register = async (data: RegisterData) => {
+  const register = async (data: IRegisterData) => {
     await authService.register(data);
   };
 

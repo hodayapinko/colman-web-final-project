@@ -1,40 +1,72 @@
-import { Box } from "@mui/material";
-import { HomeOutlined, StarOutline } from "@mui/icons-material";
-import React from "react";
+import { Box, CircularProgress } from "@mui/material";
+import { HomeOutlined, StarOutlined } from "@mui/icons-material";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { postService, type IPost } from "../services/postService";
 import PageTopBar from "../components/PageTopBar";
 import EmptyStateView from "../components/EmptyStateView";
 import AppBottomNav from "../components/AppBottomNav";
+import ReviewCard from "../components/ReviewCard";
 
 const Reviews: React.FC = () => {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [posts, setPosts] = useState<IPost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    postService.getByUser(user._id).then(setPosts).finally(() => setIsLoading(false));
+  }, [user]);
+
+  const handleDelete = async (id: string) => {
+    await postService.delete(id);
+    setPosts((prev) => prev.filter((p) => p._id !== id));
+  };
 
   const handleLogout = async () => {
     try { await logout(); } finally { navigate("/login"); }
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#F7F7FB", display: "flex", flexDirection: "column", pb: "70px" }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "#F8F9FA", display: "flex", flexDirection: "column", pb: "70px" }}>
       <PageTopBar
         icon={<HomeOutlined sx={{ color: "#6344F5", fontSize: 20 }} />}
         iconBg="#EDE9FF"
         title="My Reviews"
-        subtitle="0 reviews"
+        subtitle={`${posts.length} review${posts.length !== 1 ? "s" : ""}`}
         onLogout={handleLogout}
       />
-      <EmptyStateView
-        illustration={
-          <Box sx={{ width: 160, height: 160, borderRadius: "50%", bgcolor: "#EDE9FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <StarOutline sx={{ fontSize: 72, color: "#6344F5" }} />
+      <Box sx={{ flex: 1, px: 2, pt: 2 }}>
+        {isLoading ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+            <CircularProgress sx={{ color: "#6344F5" }} />
           </Box>
-        }
-        heading="No Reviews Yet"
-        description="Start your journey by sharing your first hotel experience. Your reviews help others make better travel decisions!"
-        ctaLabel="Add Your First Review"
-        onCtaClick={() => navigate("/create")}
-      />
+        ) : posts.length === 0 ? (
+          <EmptyStateView
+            illustration={
+              <Box sx={{ width: 160, height: 160, borderRadius: "50%", bgcolor: "#EDE9FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <StarOutlined sx={{ fontSize: 72, color: "#6344F5" }} />
+              </Box>
+            }
+            heading="No Reviews Yet"
+            description="Start your journey by sharing your first hotel experience. Your reviews help others make better travel decisions!"
+            ctaLabel="Add Your First Review"
+            onCtaClick={() => navigate("/create")}
+          />
+        ) : (
+          posts.map((post) => (
+            <ReviewCard
+              key={post._id}
+              post={post}
+              mode="mine"
+              onEdit={(id) => navigate(`/edit/${id}`)}
+              onDelete={handleDelete}
+            />
+          ))
+        )}
+      </Box>
       <AppBottomNav activeIndex={0} />
     </Box>
   );

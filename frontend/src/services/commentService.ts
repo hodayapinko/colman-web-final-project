@@ -1,6 +1,6 @@
 import api from "./api";
 
-export interface Comment {
+export interface IComment {
   _id: string;
   content: string;
   postId: string;
@@ -9,19 +9,19 @@ export interface Comment {
   updatedAt: string;
 }
 
-export interface CreateCommentData {
+export interface ICreateCommentData {
   postId: string;
   content: string;
   userId: string;
 }
 
 export const commentService = {
-  getByPost: async (postId: string): Promise<Comment[]> => {
+  getByPost: async (postId: string): Promise<IComment[]> => {
     const res = await api.get(`/comments/post/${postId}`);
     return res.data.data;
   },
 
-  create: async (data: CreateCommentData) => {
+  create: async (data: ICreateCommentData) => {
     const res = await api.post("/comments", data);
     return res.data;
   },

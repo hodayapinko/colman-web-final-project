@@ -1,4 +1,6 @@
 import { Request, Response } from "express";
+import fs from "fs";
+import path from "path";
 import Post from "../models/Post.model";
 import { HTTP_STATUS } from "../constants/constants";
 import mongoose from "mongoose";
@@ -6,7 +8,9 @@ import { findUserById } from "./shared/functions";
 
 export const getAllPosts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const posts = await Post.find();
+    const posts = await Post.find()
+      .populate("user", "username profilePicture")
+      .sort({ createdAt: -1 });
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
@@ -84,11 +88,13 @@ export const getPostById = async (req: Request, res: Response): Promise<void> =>
 
 export const createPost = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, content, userId, image } = req.body as {
+    const { title, content, userId, image, location, rating } = req.body as {
       title: string;
       content: string;
       userId: string;
       image?: string;
+      location?: string;
+      rating?: number;
     };
 
     if (!title || !content || !userId) {
@@ -121,6 +127,8 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       title,
       content,
       image,
+      location,
+      rating,
       user: userId,
     });
 
@@ -153,10 +161,13 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
 export const updatePost = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { title, content, userId } = req.body as Partial<{
+    const { title, content, userId, image, location, rating } = req.body as Partial<{
       title: string;
       content: string;
       userId: string;
+      image: string;
+      location: string;
+      rating: number;
     }>;
 
     // Build update object with only provided fields
@@ -164,10 +175,16 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
       title: string; 
       content: string; 
       user: string;
+      image: string;
+      location: string;
+      rating: number;
     }> = {};
     
     if (title !== undefined) updateData.title = title;
     if (content !== undefined) updateData.content = content;
+    if (image !== undefined && image !== "") updateData.image = image;
+    if (location !== undefined) updateData.location = location;
+    if (rating !== undefined) updateData.rating = rating;
     if (userId !== undefined) {
       if (!mongoose.Types.ObjectId.isValid(userId)) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -190,17 +207,34 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Check if there's at least one field to update
-    if (Object.keys(updateData).length === 0) {
+    if (Object.keys(updateData).length === 0 && image !== "") {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
-        message: "At least one field (title, content, or userId) must be provided for update",
+        message: "At least one field must be provided for update",
       });
       return;
     }
 
+    // If image is being changed or removed, delete the old file from disk
+    const imageIsChanging = image !== undefined && (image === "" || (image !== "" && updateData.image !== undefined));
+    if (imageIsChanging) {
+      const existingPost = await Post.findById(id).select("image");
+      if (existingPost?.image) {
+        // Image URLs look like http://host:port/public/filename.ext — extract the relative path
+        const oldRelative = existingPost.image.replace(/^https?:\/\/[^/]+\//, "");
+        const oldAbsolute = path.join(process.cwd(), oldRelative);
+        if (fs.existsSync(oldAbsolute)) {
+          fs.unlinkSync(oldAbsolute);
+        }
+      }
+    }
+
     const updatedPost = await Post.findByIdAndUpdate(
       id,
-      updateData,
+      {
+        ...(Object.keys(updateData).length > 0 && { $set: updateData }),
+        ...(image === "" && { $unset: { image: 1 } }),
+      },
       { new: true, runValidators: true }
     );
 
@@ -228,6 +262,44 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
     }
 
     console.error("Error updating post:", error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+export const deletePost = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const deletedPost = await Post.findByIdAndDelete(id);
+
+    if (!deletedPost) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({
+        success: false,
+        message: "Post not found",
+      });
+      return;
+    }
+
+    // Delete the image file from disk if it exists
+    if (deletedPost.image) {
+      const oldRelative = deletedPost.image.replace(/^https?:\/\/[^/]+\//, "");
+      const oldAbsolute = path.join(process.cwd(), oldRelative);
+      if (fs.existsSync(oldAbsolute)) {
+        fs.unlinkSync(oldAbsolute);
+      }
+    }
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: "Post deleted successfully",
+      data: deletedPost,
+    });
+  } catch (error: any) {
+    console.error("Error deleting post:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Internal server error",
