@@ -169,16 +169,13 @@ export class AuthController {
           refreshTokens: [],
         });
       } else {
-        let needsSave: boolean = false;
         if (!user.googleId) {
           user.googleId = googleUser.googleId;
-          needsSave = true;
         }
         if (googleUser.picture && user.profilePicture !== googleUser.picture) {
           user.profilePicture = googleUser.picture;
-          needsSave = true;
         }
-        if (needsSave) await user.save();
+        await user.save();
       }
 
       const tokens: TokenPair | null = TokenService.generateTokenPair(user._id.toString());
@@ -222,14 +219,13 @@ export class AuthController {
 
       let payload: TokenPayload;
       try {
-        payload = await TokenService.verifyToken(refreshToken);
-        TokenService.assertTokenType(payload, "refresh");
+        payload = await TokenService.verifyRefreshToken(refreshToken);
       } catch {
         res.status(HTTP_STATUS.FORBIDDEN).json({ message: "Forbidden" });
         return;
       }
 
-      const userId: string = TokenService.extractUserId(payload);
+      const userId: string = TokenService.extractUserIdFromToken(payload);
       const user: IUser | null = await User.findById(userId);
       if (!user) {
         res.status(HTTP_STATUS.FORBIDDEN).json({ message: "Forbidden" });
@@ -280,9 +276,8 @@ export class AuthController {
         return;
       }
       try {
-        const payload: TokenPayload = await TokenService.verifyToken(refreshToken);
-        TokenService.assertTokenType(payload, "refresh");
-        const userId: string = TokenService.extractUserId(payload);
+        const payload: TokenPayload = await TokenService.verifyRefreshToken(refreshToken);
+        const userId: string = TokenService.extractUserIdFromToken(payload);
         const user: IUser | null = await User.findById(userId);
         if (user?.refreshTokens) {
           user.refreshTokens = user.refreshTokens.filter(

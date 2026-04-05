@@ -21,88 +21,80 @@ describe("TokenService", () => {
       expect(pair!.refreshToken).toBeDefined();
     });
 
-    it("should return null if ACCESS_TOKEN_SECRET is missing", () => {
+    it("should throw if ACCESS_TOKEN_SECRET is missing", () => {
       delete process.env.ACCESS_TOKEN_SECRET;
 
-      const pair = TokenService.generateTokenPair("user123");
-      expect(pair).toBeNull();
+      expect(() => TokenService.generateTokenPair("user123")).toThrow("Missing ACCESS_TOKEN_SECRET");
     });
 
-    it("should return null if REFRESH_TOKEN_SECRET is missing", () => {
+    it("should throw if REFRESH_TOKEN_SECRET is missing", () => {
       delete process.env.REFRESH_TOKEN_SECRET;
 
-      const pair = TokenService.generateTokenPair("user123");
-      expect(pair).toBeNull();
+      expect(() => TokenService.generateTokenPair("user123")).toThrow("Missing REFRESH_TOKEN_SECRET");
     });
 
-    it("should return null if both secrets are missing", () => {
+    it("should throw if both secrets are missing", () => {
       delete process.env.ACCESS_TOKEN_SECRET;
       delete process.env.REFRESH_TOKEN_SECRET;
 
-      const pair = TokenService.generateTokenPair("user123");
-      expect(pair).toBeNull();
+      expect(() => TokenService.generateTokenPair("user123")).toThrow();
     });
   });
 
-  describe("verifyToken", () => {
-    it("should verify an access token", async () => {
+  describe("verifyAccessToken", () => {
+    it("should verify an access token", () => {
       const pair = TokenService.generateTokenPair("user123");
-      const payload = await TokenService.verifyToken(pair!.accessToken);
+      const payload = TokenService.verifyAccessToken(pair!.accessToken);
 
       expect(payload._id).toBe("user123");
       expect(payload.tokenType).toBe("access");
     });
 
-    it("should verify a refresh token", async () => {
+    it("should reject an invalid token", () => {
+      expect(() =>
+        TokenService.verifyAccessToken("invalid-token")
+      ).toThrow();
+    });
+
+    it("should throw if ACCESS_TOKEN_SECRET is missing", () => {
+      delete process.env.ACCESS_TOKEN_SECRET;
+
+      expect(() =>
+        TokenService.verifyAccessToken("some-token")
+      ).toThrow("Missing ACCESS_TOKEN_SECRET");
+    });
+  });
+
+  describe("verifyRefreshToken", () => {
+    it("should verify a refresh token", () => {
       const pair = TokenService.generateTokenPair("user123");
-      const payload = await TokenService.verifyToken(pair!.refreshToken);
+      const payload = TokenService.verifyRefreshToken(pair!.refreshToken);
 
       expect(payload._id).toBe("user123");
       expect(payload.tokenType).toBe("refresh");
     });
 
-    it("should reject an invalid token", async () => {
-      await expect(
-        TokenService.verifyToken("invalid-token")
-      ).rejects.toThrow();
+    it("should reject an invalid token", () => {
+      expect(() =>
+        TokenService.verifyRefreshToken("invalid-token")
+      ).toThrow();
     });
 
-    it("should throw if secrets are missing", async () => {
-      delete process.env.ACCESS_TOKEN_SECRET;
+    it("should throw if REFRESH_TOKEN_SECRET is missing", () => {
       delete process.env.REFRESH_TOKEN_SECRET;
 
-      await expect(
-        TokenService.verifyToken("some-token")
-      ).rejects.toThrow("Token secrets are not defined");
-    });
-  });
-
-  describe("assertTokenType", () => {
-    it("should not throw for matching token type", async () => {
-      const pair = TokenService.generateTokenPair("user123");
-      const payload = await TokenService.verifyToken(pair!.accessToken);
-
       expect(() =>
-        TokenService.assertTokenType(payload, "access")
-      ).not.toThrow();
-    });
-
-    it("should throw for mismatched token type", async () => {
-      const pair = TokenService.generateTokenPair("user123");
-      const payload = await TokenService.verifyToken(pair!.accessToken);
-
-      expect(() =>
-        TokenService.assertTokenType(payload, "refresh")
-      ).toThrow("Invalid token type");
+        TokenService.verifyRefreshToken("some-token")
+      ).toThrow("Missing REFRESH_TOKEN_SECRET");
     });
   });
 
   describe("extractUserId", () => {
-    it("should extract user ID from payload", async () => {
+    it("should extract user ID from payload", () => {
       const pair = TokenService.generateTokenPair("user123");
-      const payload = await TokenService.verifyToken(pair!.accessToken);
+      const payload = TokenService.verifyAccessToken(pair!.accessToken);
 
-      expect(TokenService.extractUserId(payload)).toBe("user123");
+      expect(TokenService.extractUserIdFromToken(payload)).toBe("user123");
     });
   });
 });

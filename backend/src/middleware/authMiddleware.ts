@@ -1,50 +1,49 @@
 import { Request, Response, NextFunction } from "express";
 import { TokenService } from "../services/tokenService";
+import { HTTP_STATUS } from "../constants/constants";
+import { TokenExpiredError } from "jsonwebtoken";
 
-/**
- * Middleware to protect routes requiring authentication
- * Validates access token from Authorization header
- * Attaches userId to the request for downstream use
- */
-export async function authMiddleware(
-  req: Request,
+interface AuthRequest extends Request {
+  userId?: string;
+}
+
+const getUnauthorizedResponse = (res: Response, message: string) => {
+  return res.status(HTTP_STATUS.UNAUTHORIZED).json({ message });
+};
+
+export function authMiddleware(
+  req: AuthRequest,
   res: Response,
   next: NextFunction
-): Promise<void> {
+): void {
   try {
-    // Extract token from Authorization header
-    const authHeader: string | undefined = req.headers.authorization;
+    const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
+    if (!authHeader) {
+       getUnauthorizedResponse(res, "Access denied. No token provided.");
+       return;
     }
 
-    const token: string = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const parts = authHeader.split(" ");
 
-    if (!token) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
+    if (parts.length !== 2 || parts[0] !== "Bearer") {
+       getUnauthorizedResponse(res, "Access denied. Invalid token format.");
     }
 
-    // Verify token
-    try {
-      const payload: import("../services/tokenService").TokenPayload = await TokenService.verifyToken(token);
-      TokenService.assertTokenType(payload, "access");
-      const userId: string = TokenService.extractUserId(payload);
+    const token = parts[1];
 
-      // Attach user ID for downstream handlers.
-      // Keep req.params.userId as well for backwards compatibility.
-      (req as Request & { userId?: string }).userId = userId;
-      req.params.userId = userId;
+    const payload = TokenService.verifyAccessToken(token);
+    req.userId = TokenService.extractUserIdFromToken(payload);
 
-      next();
-    } catch (error) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
+    next();
   } catch (error) {
     console.error("Auth middleware error:", error);
-    res.status(401).json({ message: "Unauthorized" });
+
+    if (error instanceof TokenExpiredError) {
+       getUnauthorizedResponse(res, "Token expired.");
+       return
+    }
+
+     getUnauthorizedResponse(res, "Invalid token.");
   }
 }

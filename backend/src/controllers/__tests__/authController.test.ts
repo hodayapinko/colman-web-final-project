@@ -449,14 +449,11 @@ describe("AuthController", () => {
       (cookieUtils.getRefreshTokenFromRequest as jest.Mock).mockReturnValue(
         "refresh-token"
       );
-      (TokenService.verifyToken as jest.Mock).mockResolvedValue({
+      (TokenService.verifyRefreshToken as jest.Mock).mockReturnValue({
         _id: "user123",
         tokenType: "refresh",
       });
-      (TokenService.assertTokenType as jest.Mock).mockImplementation(
-        () => undefined
-      );
-      (TokenService.extractUserId as jest.Mock).mockReturnValue("user123");
+      (TokenService.extractUserIdFromToken as jest.Mock).mockReturnValue("user123");
       (User.findById as jest.Mock).mockResolvedValue(mockUser);
 
       await AuthController.logout(
