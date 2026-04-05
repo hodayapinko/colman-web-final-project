@@ -68,7 +68,10 @@ export const postService = {
     return res.data;
   },
 
-  toggleLike: async (id: string, userId: string): Promise<{ likes: string[]; liked: boolean }> => {
+  toggleLike: async (
+    id: string,
+    userId: string
+  ): Promise<{ likes: string[]; liked: boolean }> => {
     const res = await api.put(`/posts/${id}/like`, { userId });
     return res.data.data;
   },

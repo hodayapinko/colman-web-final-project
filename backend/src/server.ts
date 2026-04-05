@@ -27,7 +27,7 @@ app.use(
   cors({
     origin: corsOrigin,
     credentials: true,
-  }),
+  })
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -42,7 +42,8 @@ app.use("/api", routes);
 
 // Root endpoint - shows server and MongoDB status
 app.get("/", (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? "Connected" : "Disconnected";
+  const dbStatus =
+    mongoose.connection.readyState === 1 ? "Connected" : "Disconnected";
   res.send(`
     <html>
       <head>
@@ -95,8 +96,8 @@ app.get("/", (req, res) => {
           <div class="status running">
             ✅ Server is running on port ${PORT}
           </div>
-          <div class="status ${dbStatus === 'Connected' ? 'connected' : 'disconnected'}">
-            ${dbStatus === 'Connected' ? '✅' : '❌'} MongoDB: ${dbStatus}
+          <div class="status ${dbStatus === "Connected" ? "connected" : "disconnected"}">
+            ${dbStatus === "Connected" ? "✅" : "❌"} MongoDB: ${dbStatus}
           </div>
           <a href="/api-docs" class="link">📚 View API Documentation</a>
         </div>

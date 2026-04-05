@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
+import { Request, Response } from "express";
 
-const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
+const REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
@@ -17,10 +17,10 @@ export function getRefreshTokenFromRequest(req: Request): string | undefined {
 export function setRefreshCookie(res: Response, refreshToken: string): void {
   res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === "production",
     // In production (often cross-site frontend/backend), cookies typically must be SameSite=None + Secure.
     // In local development, Lax is usually the most reliable default.
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: SEVEN_DAYS_MS,
   });
 }
@@ -29,10 +29,10 @@ export function setRefreshCookie(res: Response, refreshToken: string): void {
  * Clears the refresh token cookie
  */
 export function clearRefreshCookie(res: Response): void {
-  res.cookie(REFRESH_TOKEN_COOKIE_NAME, '', {
+  res.cookie(REFRESH_TOKEN_COOKIE_NAME, "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     maxAge: 0,
   });
 }

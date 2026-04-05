@@ -1,0 +1,35 @@
+.auth-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  position: relative;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.auth-logo-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #4f46e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-logo-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #facc15;
+  color: #fff;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}

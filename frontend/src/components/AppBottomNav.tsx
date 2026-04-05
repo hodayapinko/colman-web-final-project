@@ -36,17 +36,39 @@ const AppBottomNav: React.FC<AppBottomNavProps> = ({ activeIndex }) => {
   return (
     <Paper
       elevation={0}
-      sx={{ position: "fixed", bottom: 0, left: 0, right: 0, borderTop: "1px solid #EBEBF0" }}
+      sx={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        borderTop: "1px solid #EBEBF0",
+      }}
     >
       <BottomNavigation
         value={activeIndex}
         onChange={(_, newValue) => navigate(NAV_ROUTES[newValue])}
         sx={{ bgcolor: "#fff", height: 64 }}
       >
-        <BottomNavigationAction label="Home" icon={<HomeOutlined />} sx={navItemSx(0)} />
-        <BottomNavigationAction label="Feed" icon={<LanguageOutlined />} sx={navItemSx(1)} />
-        <BottomNavigationAction label="Add" icon={<AddCircleOutline />} sx={navItemSx(2)} />
-        <BottomNavigationAction label="Profile" icon={<PersonOutlined />} sx={navItemSx(3)} />
+        <BottomNavigationAction
+          label="Home"
+          icon={<HomeOutlined />}
+          sx={navItemSx(0)}
+        />
+        <BottomNavigationAction
+          label="Feed"
+          icon={<LanguageOutlined />}
+          sx={navItemSx(1)}
+        />
+        <BottomNavigationAction
+          label="Add"
+          icon={<AddCircleOutline />}
+          sx={navItemSx(2)}
+        />
+        <BottomNavigationAction
+          label="Profile"
+          icon={<PersonOutlined />}
+          sx={navItemSx(3)}
+        />
       </BottomNavigation>
     </Paper>
   );

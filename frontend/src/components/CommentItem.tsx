@@ -9,13 +9,31 @@ interface CommentItemProps {
   onDelete: (id: string) => void;
 }
 
-const CommentItem: React.FC<CommentItemProps> = ({ comment, currentUserId, onDelete }) => (
+const CommentItem: React.FC<CommentItemProps> = ({
+  comment,
+  currentUserId,
+  onDelete,
+}) => (
   <Paper
     elevation={0}
-    sx={{ bgcolor: "#fff", borderRadius: 3, p: 1.75, mb: 1.25, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}
+    sx={{
+      bgcolor: "#fff",
+      borderRadius: 3,
+      p: 1.75,
+      mb: 1.25,
+      boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
+    }}
   >
-    <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-      <Typography sx={{ fontSize: "0.88rem", color: "#333", lineHeight: 1.6, flex: 1 }}>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+      }}
+    >
+      <Typography
+        sx={{ fontSize: "0.88rem", color: "#333", lineHeight: 1.6, flex: 1 }}
+      >
         {comment.content}
       </Typography>
       {currentUserId && currentUserId === comment.userId && (

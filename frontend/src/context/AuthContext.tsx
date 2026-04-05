@@ -1,43 +1,79 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { authService, type ILoginData, type IRegisterData } from "../services/authService";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+} from "react";
+import {
+  authService,
+  type ILoginData,
+  type IRegisterData,
+} from "../services/authService";
 
 interface User {
   _id: string;
   username?: string;
   email?: string;
+  profilePicture?: string;
 }
 
 interface AuthContextType {
   user: User | null;
+  loading: boolean;
   login: (data: ILoginData) => Promise<void>;
   register: (data: IRegisterData) => Promise<void>;
+  googleLogin: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userId = localStorage.getItem("userId");
-    const token = localStorage.getItem("accessToken");
-    if (userId && token) {
-      setUser({ _id: userId });
-    }
+    const initAuth = async () => {
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        try {
+          const userData = await authService.me();
+          setUser(userData);
+        } catch {
+          localStorage.clear();
+        }
+      }
+      setLoading(false);
+    };
+    initAuth();
   }, []);
 
   const login = async (data: ILoginData) => {
     const res = await authService.login(data);
     localStorage.setItem("accessToken", res.accessToken);
     localStorage.setItem("refreshToken", res.refreshToken);
-    localStorage.setItem("userId", res._id);
-    setUser({ _id: res._id });
+    const userData = await authService.me();
+    setUser(userData);
   };
 
   const register = async (data: IRegisterData) => {
-    await authService.register(data);
+    const res = await authService.register(data);
+    localStorage.setItem("accessToken", res.accessToken);
+    localStorage.setItem("refreshToken", res.refreshToken);
+    const userData = await authService.me();
+    setUser(userData);
+  };
+
+  const googleLogin = async (credential: string) => {
+    const res = await authService.googleLogin(credential);
+    localStorage.setItem("accessToken", res.accessToken);
+    localStorage.setItem("refreshToken", res.refreshToken);
+    const userData = await authService.me();
+    setUser(userData);
   };
 
   const logout = async () => {
@@ -47,15 +83,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   return (
     <AuthContext.Provider
-      value={{ user, login, register, logout, isAuthenticated: !!user }}
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        googleLogin,
+        logout,
+        isAuthenticated: !!user,
+      }}
     >
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
-}
+};

@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { TokenService } from '../services/tokenService';
+import { Request, Response, NextFunction } from "express";
+import { TokenService } from "../services/tokenService";
 
 /**
  * Middleware to protect routes requiring authentication
@@ -13,25 +13,25 @@ export async function authMiddleware(
 ): Promise<void> {
   try {
     // Extract token from Authorization header
-    const authHeader = req.headers.authorization;
+    const authHeader: string | undefined = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ message: 'Unauthorized' });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const token: string = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     if (!token) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
 
     // Verify token
     try {
-      const payload = await TokenService.verifyToken(token);
-      TokenService.assertTokenType(payload, 'access');
-      const userId = TokenService.extractUserId(payload);
+      const payload: import("../services/tokenService").TokenPayload = await TokenService.verifyToken(token);
+      TokenService.assertTokenType(payload, "access");
+      const userId: string = TokenService.extractUserId(payload);
 
       // Attach user ID for downstream handlers.
       // Keep req.params.userId as well for backwards compatibility.
@@ -40,11 +40,11 @@ export async function authMiddleware(
 
       next();
     } catch (error) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
   } catch (error) {
-    console.error('Auth middleware error:', error);
-    res.status(401).json({ message: 'Unauthorized' });
+    console.error("Auth middleware error:", error);
+    res.status(401).json({ message: "Unauthorized" });
   }
 }

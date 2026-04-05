@@ -1,5 +1,13 @@
 import { Router } from "express";
-import { getAllPosts, getPostsByUserId, getPostById, createPost, updatePost, deletePost, toggleLike } from "../controllers/post.controller";
+import {
+  getAllPosts,
+  getPostsByUserId,
+  getPostById,
+  createPost,
+  updatePost,
+  deletePost,
+  toggleLike,
+} from "../controllers/post.controller";
 
 const router = Router();
 
@@ -376,4 +384,3 @@ router.put("/:id/like", toggleLike);
 router.delete("/:id", deletePost);
 
 export default router;
-

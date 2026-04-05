@@ -1,6 +1,8 @@
 import React, { useState, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
+import GoogleLoginButton from "../components/GoogleLoginButton";
+import AuthIcon from "../assets/icons/authIcon/AuthIcon";
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -23,27 +25,46 @@ const Login: React.FC = () => {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1>Login</h1>
+        <AuthIcon />
+        <h1>Welcome Back</h1>
+        <p className="auth-subtitle">Sign in to continue</p>
+
         {error && <p className="error">{error}</p>}
+
         <form onSubmit={handleSubmit}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <button type="submit">Login</button>
+          <div className="auth-field">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="auth-field">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="auth-submit">
+            Sign In
+          </button>
         </form>
+
+        <div className="auth-google-wrap">
+          <GoogleLoginButton />
+        </div>
+
         <p className="auth-link">
-          Don't have an account? <Link to="/register">Register</Link>
+          Don't have an account? <Link to="/register">Sign up</Link>
         </p>
       </div>
     </div>

@@ -3,7 +3,10 @@ import User from "../models/User.model";
 import { HTTP_STATUS, IUser } from "../constants/constants";
 import { findUserById } from "./shared/functions";
 
-export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
+export const getAllUsers = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const users = await User.find();
 
@@ -22,7 +25,10 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-export const getUserById = async (req: Request, res: Response): Promise<void> => {
+export const getUserById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -51,9 +57,13 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-export const createUser = async (req: Request, res: Response): Promise<void> => {
+export const createUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const { username, email, password, age, bio, profilePicture } = req.body as Partial<IUser>;
+    const { username, email, password, age, bio, profilePicture } =
+      req.body as Partial<IUser>;
 
     if (!username || !email) {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -126,10 +136,14 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-export const updateUser = async (req: Request, res: Response): Promise<void> => {
+export const updateUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { id } = req.params;
-    const { username, email, password, age, bio, profilePicture } = req.body as Partial<IUser>;
+    const { username, email, password, age, bio, profilePicture } =
+      req.body as Partial<IUser>;
 
     const user = await User.findById(id);
 
@@ -181,7 +195,10 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+export const deleteUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { id } = req.params;
 

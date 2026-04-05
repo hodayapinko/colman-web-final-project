@@ -24,8 +24,25 @@ const Navbar: React.FC = () => {
             <Link to="/create" className="btn btn-small">
               + New Post
             </Link>
-            <span className="nav-user">User: {user?._id.slice(-6)}</span>
-            <button onClick={handleLogout} className="btn btn-small btn-outline">
+            <div className="nav-user-info">
+              {user?.profilePicture ? (
+                <img
+                  src={user.profilePicture}
+                  alt={user.username || "Profile"}
+                  className="nav-avatar"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="nav-avatar-placeholder">
+                  {(user?.username || "U").charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span className="nav-user">{user?.username || "User"}</span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="btn btn-small btn-outline"
+            >
               Logout
             </button>
           </>

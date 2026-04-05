@@ -2,11 +2,11 @@ import mongoose from "mongoose";
 import { HTTP_STATUS } from "../constants/constants";
 import { Request, Response } from "express";
 import Comment from "../models/Comment.model";
-import { findPostById, findUserById} from "./shared/functions";
+import { findPostById, findUserById } from "./shared/functions";
 
 export const createComment = async (
   req: Request,
-  res: Response,
+  res: Response
 ): Promise<void> => {
   try {
     const { postId, content, userId } = req.body;
@@ -47,7 +47,7 @@ export const createComment = async (
     }
 
     // ensure user exists
-   const userExists = await findUserById(userId);
+    const userExists = await findUserById(userId);
 
     if (!userExists) {
       res.status(HTTP_STATUS.NOT_FOUND).json({
@@ -55,7 +55,7 @@ export const createComment = async (
         message: "User not found",
       });
       return;
-   }
+    }
     const newComment = new Comment({
       postId,
       content,
@@ -90,7 +90,7 @@ export const createComment = async (
 
 export const getAllComments = async (
   req: Request,
-  res: Response,
+  res: Response
 ): Promise<void> => {
   try {
     const comments = await Comment.find();
@@ -112,7 +112,7 @@ export const getAllComments = async (
 
 export const getCommentById = async (
   req: Request,
-  res: Response,
+  res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -144,7 +144,7 @@ export const getCommentById = async (
 
 export const getCommentsByPostId = async (
   req: Request,
-  res: Response,
+  res: Response
 ): Promise<void> => {
   try {
     const { postId } = req.params;
@@ -176,7 +176,7 @@ export const getCommentsByPostId = async (
 
 export const updateComment = async (
   req: Request,
-  res: Response,
+  res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -221,7 +221,7 @@ export const updateComment = async (
 
 export const deleteComment = async (
   req: Request,
-  res: Response,
+  res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;

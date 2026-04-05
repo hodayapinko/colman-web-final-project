@@ -15,24 +15,32 @@ const Reviews: React.FC = () => {
   const navigate = useNavigate();
   const [posts, setPosts] = useState<IPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
+    {}
+  );
 
   useEffect(() => {
     if (!user) return;
-    postService.getByUser(user._id).then(setPosts).finally(() => setIsLoading(false));
+    postService
+      .getByUser(user._id)
+      .then(setPosts)
+      .finally(() => setIsLoading(false));
   }, [user]);
 
   useEffect(() => {
     if (posts.length === 0) return;
     Promise.all(
       posts.map((p) =>
-        commentService.getByPost(p._id)
+        commentService
+          .getByPost(p._id)
           .then((c) => ({ id: p._id, count: c.length }))
           .catch(() => ({ id: p._id, count: 0 }))
       )
     ).then((results) => {
       const counts: Record<string, number> = {};
-      results.forEach(({ id, count }) => { counts[id] = count; });
+      results.forEach(({ id, count }) => {
+        counts[id] = count;
+      });
       setCommentCounts(counts);
     });
   }, [posts]);
@@ -43,11 +51,23 @@ const Reviews: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    try { await logout(); } finally { navigate("/login"); }
+    try {
+      await logout();
+    } finally {
+      navigate("/login");
+    }
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#F8F9FA", display: "flex", flexDirection: "column", pb: "70px" }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        bgcolor: "#F8F9FA",
+        display: "flex",
+        flexDirection: "column",
+        pb: "70px",
+      }}
+    >
       <PageTopBar
         icon={<HomeOutlined sx={{ color: "#6344F5", fontSize: 20 }} />}
         iconBg="#EDE9FF"
@@ -63,7 +83,17 @@ const Reviews: React.FC = () => {
         ) : posts.length === 0 ? (
           <EmptyStateView
             illustration={
-              <Box sx={{ width: 160, height: 160, borderRadius: "50%", bgcolor: "#EDE9FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Box
+                sx={{
+                  width: 160,
+                  height: 160,
+                  borderRadius: "50%",
+                  bgcolor: "#EDE9FF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 <StarOutlined sx={{ fontSize: 72, color: "#6344F5" }} />
               </Box>
             }
