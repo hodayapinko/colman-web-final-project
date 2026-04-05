@@ -59,7 +59,7 @@ export const createComment = async (
     const newComment = new Comment({
       postId,
       content,
-      user: userId,
+      userId,
     });
 
     const savedComment = await newComment.save();
