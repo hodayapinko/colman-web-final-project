@@ -28,7 +28,11 @@ export interface IUser extends Document {
 export interface IPost extends Document {
   title: string;
   content: string;
+  image?: string;
+  location?: string;
+  rating?: number;
   user: mongoose.Types.ObjectId;
+  likes: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
