@@ -19,6 +19,7 @@ const CommentsPage: React.FC = () => {
   const [newComment, setNewComment] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [commentError, setCommentError] = useState("");
 
   useEffect(() => {
     if (!postId) return;
@@ -34,10 +35,13 @@ const CommentsPage: React.FC = () => {
     e.preventDefault();
     if (!user || !postId || !newComment.trim()) return;
     setSubmitting(true);
+    setCommentError("");
     try {
       const res = await commentService.create({ postId, content: newComment, userId: user._id });
       setComments((prev) => [...prev, res.data]);
       setNewComment("");
+    } catch (err: any) {
+      setCommentError(err?.response?.data?.message || "Failed to post comment.");
     } finally {
       setSubmitting(false);
     }
@@ -111,6 +115,8 @@ const CommentsPage: React.FC = () => {
             placeholder="Write a comment..."
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
+            error={!!commentError}
+            helperText={commentError || undefined}
             sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3, fontSize: "0.9rem" } }}
           />
           <IconButton
