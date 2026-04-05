@@ -117,11 +117,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Box
               onClick={() => navigate(`/comments/${post._id}`)}
-              sx={{
-                display: "inline-flex", alignItems: "center", gap: 0.75,
-                bgcolor: "#F4F1FF", borderRadius: 2, px: 1.5, py: 0.75,
-                cursor: "pointer", "&:hover": { bgcolor: "#EDE9FF" },
-              }}
+              sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, px: 1.5, py: 0.75, cursor: "pointer" }}
             >
               <ChatBubbleOutline sx={{ fontSize: 16, color: "#6344F5" }} />
               <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#6344F5" }}>
@@ -130,11 +126,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
             </Box>
             <Box
               onClick={handleLike}
-              sx={{
-                display: "inline-flex", alignItems: "center", gap: 0.5,
-                bgcolor: isLiked ? "#FFF0F0" : "#F5F5F5", borderRadius: 2, px: 1.5, py: 0.75,
-                cursor: user ? "pointer" : "default", "&:hover": user ? { bgcolor: isLiked ? "#FFE0E0" : "#EBEBF0" } : {},
-              }}
+              sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, px: 1.5, py: 0.75, cursor: user ? "pointer" : "default" }}
             >
               {isLiked
                 ? <Favorite sx={{ fontSize: 16, color: "#d32f2f" }} />
@@ -149,11 +141,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
         {!isFeed && !isMine && (
           <Box
             onClick={handleLike}
-            sx={{
-              display: "inline-flex", alignItems: "center", gap: 0.5, mt: 1.25,
-              bgcolor: isLiked ? "#FFF0F0" : "#F5F5F5", borderRadius: 2, px: 1.5, py: 0.75,
-              cursor: user ? "pointer" : "default", "&:hover": user ? { bgcolor: isLiked ? "#FFE0E0" : "#EBEBF0" } : {},
-            }}
+            sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, mt: 1.25, px: 1.5, py: 0.75, cursor: user ? "pointer" : "default" }}
           >
             {isLiked
               ? <Favorite sx={{ fontSize: 16, color: "#d32f2f" }} />
@@ -170,11 +158,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
             <Box sx={{ display: "flex", gap: 1 }}>
               <Box
                 onClick={() => navigate(`/comments/${post._id}`)}
-                sx={{
-                  flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 0.75,
-                  bgcolor: "#F4F1FF", borderRadius: 2, px: 1.5, py: 0.75,
-                  cursor: "pointer", "&:hover": { bgcolor: "#EDE9FF" },
-                }}
+                sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, px: 1.5, py: 0.75, cursor: "pointer" }}
               >
                 <ChatBubbleOutline sx={{ fontSize: 16, color: "#6344F5" }} />
                 <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#6344F5" }}>
@@ -183,11 +167,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
               </Box>
               <Box
                 onClick={handleLike}
-                sx={{
-                  flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 0.5,
-                  bgcolor: isLiked ? "#FFF0F0" : "#F5F5F5", borderRadius: 2, px: 1.5, py: 0.75,
-                  cursor: user ? "pointer" : "default", "&:hover": user ? { bgcolor: isLiked ? "#FFE0E0" : "#EBEBF0" } : {},
-                }}
+                sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, px: 1.5, py: 0.75, cursor: user ? "pointer" : "default" }}
               >
                 {isLiked
                   ? <Favorite sx={{ fontSize: 16, color: "#d32f2f" }} />
@@ -201,21 +181,13 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
             <Box sx={{ display: "flex", gap: 1 }}>
               <Box
                 onClick={() => onEdit?.(post._id)}
-                sx={{
-                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5,
-                  bgcolor: "#F5F5F5", borderRadius: 2, py: 1, cursor: "pointer",
-                  "&:hover": { bgcolor: "#EBEBF0" },
-                }}
+                sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5, bgcolor: "#F5F5F5", borderRadius: 2, py: 1, cursor: "pointer", "&:hover": { bgcolor: "#EBEBF0" } }}
               >
                 <EditOutlined sx={{ fontSize: 16, color: "#555" }} />
               </Box>
               <Box
                 onClick={() => onDelete?.(post._id)}
-                sx={{
-                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5,
-                  bgcolor: "#FFF0F0", borderRadius: 2, py: 1, cursor: "pointer",
-                  "&:hover": { bgcolor: "#FFE0E0" },
-                }}
+                sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5, bgcolor: "#FFF0F0", borderRadius: 2, py: 1, cursor: "pointer", "&:hover": { bgcolor: "#FFE0E0" } }}
               >
                 <DeleteOutlined sx={{ fontSize: 16, color: "#d32f2f" }} />
               </Box>
