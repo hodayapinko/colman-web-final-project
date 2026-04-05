@@ -34,7 +34,7 @@ export class OAuthService {
       });
 
       const payload = ticket.getPayload();
-      
+
       if (!payload || !payload.email) {
         throw new Error('Invalid token payload');
       }
@@ -55,7 +55,7 @@ export class OAuthService {
    * Handles collisions by appending random numbers
    */
   static async generateUniqueUsername(email: string, name?: string): Promise<string> {
-    let baseUsername = name 
+    let baseUsername = name
       ? name.toLowerCase().replace(/[^a-z0-9_]/g, '_')
       : email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_');
 

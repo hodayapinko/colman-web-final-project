@@ -45,6 +45,10 @@ const userSchema = new Schema<IUser>(
       type: String,
       trim: true,
     },
+    googleId: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt fields

@@ -22,6 +22,7 @@ export interface IUser extends Document {
   profilePicture?: string;
   createdAt: Date;
   updatedAt: Date;
+  googleId?: string;
 }
 
 export interface IPost extends Document {

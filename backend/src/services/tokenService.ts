@@ -25,7 +25,7 @@ export class TokenService {
    */
   static generateTokenPair(userId: string): TokenPair | null {
     const secret = process.env.TOKEN_SECRET;
-    
+
     if (!secret) {
       console.error('TOKEN_SECRET is not defined');
       return null;
@@ -47,7 +47,7 @@ export class TokenService {
    */
   static async verifyToken(token: string): Promise<TokenPayload> {
     const secret = process.env.TOKEN_SECRET;
-    
+
     if (!secret) {
       throw new Error('TOKEN_SECRET is not defined');
     }
