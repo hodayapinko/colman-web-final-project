@@ -270,6 +270,43 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
+export const toggleLike = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body as { userId: string };
+
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+      res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, message: "Invalid userId" });
+      return;
+    }
+
+    const post = await Post.findById(id);
+    if (!post) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, message: "Post not found" });
+      return;
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const alreadyLiked = post.likes.some((lid) => lid.equals(userObjectId));
+
+    if (alreadyLiked) {
+      post.likes = post.likes.filter((lid) => !lid.equals(userObjectId));
+    } else {
+      post.likes.push(userObjectId);
+    }
+
+    await post.save();
+
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: alreadyLiked ? "Like removed" : "Post liked",
+      data: { likes: post.likes, liked: !alreadyLiked },
+    });
+  } catch (error: any) {
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, message: "Internal server error", error: error.message });
+  }
+};
+
 export const deletePost = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;

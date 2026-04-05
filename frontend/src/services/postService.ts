@@ -14,6 +14,7 @@ export interface IPost {
   location?: string;
   rating?: number;
   user: string | IPostUser;
+  likes: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -65,5 +66,10 @@ export const postService = {
   delete: async (id: string) => {
     const res = await api.delete(`/posts/${id}`);
     return res.data;
+  },
+
+  toggleLike: async (id: string, userId: string): Promise<{ likes: string[]; liked: boolean }> => {
+    const res = await api.put(`/posts/${id}/like`, { userId });
+    return res.data.data;
   },
 };

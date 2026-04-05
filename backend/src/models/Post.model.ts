@@ -34,6 +34,11 @@ const postSchema = new Schema<IPost>(
       ref: "User",
       required: [true, "User is required"],
     },
+    likes: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt fields

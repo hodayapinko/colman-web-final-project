@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { Box, Typography, Avatar, Paper } from "@mui/material";
-import { StarOutlined, ChatBubbleOutline, EditOutlined, DeleteOutlined } from "@mui/icons-material";
+import { StarOutlined, ChatBubbleOutline, EditOutlined, DeleteOutlined, Favorite, FavoriteBorder } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { type IPost } from "../services/postService";
+import { type IPost, postService } from "../services/postService";
 import { getPostUser, timeAgo, resolveImageUrl } from "../utils/postUtils";
+import { useAuth } from "../context/AuthContext";
 
 interface ReviewCardProps {
   post: IPost;
@@ -15,6 +16,7 @@ interface ReviewCardProps {
 
 const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentCount, onEdit, onDelete }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const postUser = getPostUser(post);
   const username = postUser?.username ?? "User";
   const avatarSrc = postUser?.profilePicture
@@ -22,6 +24,18 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
     : undefined;
   const isFeed = mode === "feed";
   const isMine = mode === "mine";
+
+  const [likes, setLikes] = useState<string[]>(post.likes ?? []);
+  const isLiked = user ? likes.includes(user._id) : false;
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) return;
+    try {
+      const res = await postService.toggleLike(post._id, user._id);
+      setLikes(res.likes);
+    } catch {}
+  };
 
   return (
     <Paper
@@ -100,44 +114,113 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
         )}
 
         {isFeed && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              onClick={() => navigate(`/comments/${post._id}`)}
+              sx={{
+                display: "inline-flex", alignItems: "center", gap: 0.75,
+                bgcolor: "#F4F1FF", borderRadius: 2, px: 1.5, py: 0.75,
+                cursor: "pointer", "&:hover": { bgcolor: "#EDE9FF" },
+              }}
+            >
+              <ChatBubbleOutline sx={{ fontSize: 16, color: "#6344F5" }} />
+              <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#6344F5" }}>
+                {commentCount ?? 0} {(commentCount ?? 0) === 1 ? "Comment" : "Comments"}
+              </Typography>
+            </Box>
+            <Box
+              onClick={handleLike}
+              sx={{
+                display: "inline-flex", alignItems: "center", gap: 0.5,
+                bgcolor: isLiked ? "#FFF0F0" : "#F5F5F5", borderRadius: 2, px: 1.5, py: 0.75,
+                cursor: user ? "pointer" : "default", "&:hover": user ? { bgcolor: isLiked ? "#FFE0E0" : "#EBEBF0" } : {},
+              }}
+            >
+              {isLiked
+                ? <Favorite sx={{ fontSize: 16, color: "#d32f2f" }} />
+                : <FavoriteBorder sx={{ fontSize: 16, color: "#9E9EB0" }} />}
+              <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: isLiked ? "#d32f2f" : "#9E9EB0" }}>
+                {likes.length}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+
+        {!isFeed && !isMine && (
           <Box
-            onClick={() => navigate(`/comments/${post._id}`)}
+            onClick={handleLike}
             sx={{
-              display: "inline-flex", alignItems: "center", gap: 0.75,
-              bgcolor: "#F4F1FF", borderRadius: 2, px: 1.5, py: 0.75,
-              cursor: "pointer", "&:hover": { bgcolor: "#EDE9FF" },
+              display: "inline-flex", alignItems: "center", gap: 0.5, mt: 1.25,
+              bgcolor: isLiked ? "#FFF0F0" : "#F5F5F5", borderRadius: 2, px: 1.5, py: 0.75,
+              cursor: user ? "pointer" : "default", "&:hover": user ? { bgcolor: isLiked ? "#FFE0E0" : "#EBEBF0" } : {},
             }}
           >
-            <ChatBubbleOutline sx={{ fontSize: 16, color: "#6344F5" }} />
-            <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#6344F5" }}>
-              {commentCount ?? 0} {(commentCount ?? 0) === 1 ? "Comment" : "Comments"}
+            {isLiked
+              ? <Favorite sx={{ fontSize: 16, color: "#d32f2f" }} />
+              : <FavoriteBorder sx={{ fontSize: 16, color: "#9E9EB0" }} />}
+            <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: isLiked ? "#d32f2f" : "#9E9EB0" }}>
+              {likes.length} {likes.length === 1 ? "Like" : "Likes"}
             </Typography>
           </Box>
         )}
 
         {isMine && (
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Box
-              onClick={() => onEdit?.(post._id)}
-              sx={{
-                flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5,
-                bgcolor: "#F5F5F5", borderRadius: 2, py: 1, cursor: "pointer",
-                "&:hover": { bgcolor: "#EBEBF0" },
-              }}
-            >
-              <EditOutlined sx={{ fontSize: 16, color: "#555" }} />
-              <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#555" }}>Edit</Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {/* Stats row: comments + likes */}
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Box
+                onClick={() => navigate(`/comments/${post._id}`)}
+                sx={{
+                  flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 0.75,
+                  bgcolor: "#F4F1FF", borderRadius: 2, px: 1.5, py: 0.75,
+                  cursor: "pointer", "&:hover": { bgcolor: "#EDE9FF" },
+                }}
+              >
+                <ChatBubbleOutline sx={{ fontSize: 16, color: "#6344F5" }} />
+                <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#6344F5" }}>
+                  {commentCount ?? 0} {(commentCount ?? 0) === 1 ? "Comment" : "Comments"}
+                </Typography>
+              </Box>
+              <Box
+                onClick={handleLike}
+                sx={{
+                  flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 0.5,
+                  bgcolor: isLiked ? "#FFF0F0" : "#F5F5F5", borderRadius: 2, px: 1.5, py: 0.75,
+                  cursor: user ? "pointer" : "default", "&:hover": user ? { bgcolor: isLiked ? "#FFE0E0" : "#EBEBF0" } : {},
+                }}
+              >
+                {isLiked
+                  ? <Favorite sx={{ fontSize: 16, color: "#d32f2f" }} />
+                  : <FavoriteBorder sx={{ fontSize: 16, color: "#9E9EB0" }} />}
+                <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: isLiked ? "#d32f2f" : "#9E9EB0" }}>
+                  {likes.length} {likes.length === 1 ? "Like" : "Likes"}
+                </Typography>
+              </Box>
             </Box>
-            <Box
-              onClick={() => onDelete?.(post._id)}
-              sx={{
-                flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5,
-                bgcolor: "#FFF0F0", borderRadius: 2, py: 1, cursor: "pointer",
-                "&:hover": { bgcolor: "#FFE0E0" },
-              }}
-            >
-              <DeleteOutlined sx={{ fontSize: 16, color: "#d32f2f" }} />
-              <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#d32f2f" }}>Delete</Typography>
+            {/* Edit / Delete row */}
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Box
+                onClick={() => onEdit?.(post._id)}
+                sx={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5,
+                  bgcolor: "#F5F5F5", borderRadius: 2, py: 1, cursor: "pointer",
+                  "&:hover": { bgcolor: "#EBEBF0" },
+                }}
+              >
+                <EditOutlined sx={{ fontSize: 16, color: "#555" }} />
+                <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#555" }}>Edit</Typography>
+              </Box>
+              <Box
+                onClick={() => onDelete?.(post._id)}
+                sx={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5,
+                  bgcolor: "#FFF0F0", borderRadius: 2, py: 1, cursor: "pointer",
+                  "&:hover": { bgcolor: "#FFE0E0" },
+                }}
+              >
+                <DeleteOutlined sx={{ fontSize: 16, color: "#d32f2f" }} />
+                <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#d32f2f" }}>Delete</Typography>
+              </Box>
             </Box>
           </Box>
         )}
