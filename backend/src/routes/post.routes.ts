@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAllPosts, getPostsByUserId, getPostById, createPost, updatePost, deletePost } from "../controllers/post.controller";
+import { getAllPosts, getPostsByUserId, getPostById, createPost, updatePost, deletePost, toggleLike } from "../controllers/post.controller";
 
 const router = Router();
 
@@ -370,6 +370,8 @@ router.post("/", createPost);
  *                   example: Database error
  */
 router.put("/:id", updatePost);
+
+router.put("/:id/like", toggleLike);
 
 router.delete("/:id", deletePost);
 

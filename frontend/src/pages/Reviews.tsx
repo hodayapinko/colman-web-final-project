@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { postService, type IPost } from "../services/postService";
+import { commentService } from "../services/commentService";
 import PageTopBar from "../components/PageTopBar";
 import EmptyStateView from "../components/EmptyStateView";
 import AppBottomNav from "../components/AppBottomNav";
@@ -14,11 +15,27 @@ const Reviews: React.FC = () => {
   const navigate = useNavigate();
   const [posts, setPosts] = useState<IPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!user) return;
     postService.getByUser(user._id).then(setPosts).finally(() => setIsLoading(false));
   }, [user]);
+
+  useEffect(() => {
+    if (posts.length === 0) return;
+    Promise.all(
+      posts.map((p) =>
+        commentService.getByPost(p._id)
+          .then((c) => ({ id: p._id, count: c.length }))
+          .catch(() => ({ id: p._id, count: 0 }))
+      )
+    ).then((results) => {
+      const counts: Record<string, number> = {};
+      results.forEach(({ id, count }) => { counts[id] = count; });
+      setCommentCounts(counts);
+    });
+  }, [posts]);
 
   const handleDelete = async (id: string) => {
     await postService.delete(id);
@@ -61,6 +78,7 @@ const Reviews: React.FC = () => {
               key={post._id}
               post={post}
               mode="mine"
+              commentCount={commentCounts[post._id] ?? 0}
               onEdit={(id) => navigate(`/edit/${id}`)}
               onDelete={handleDelete}
             />

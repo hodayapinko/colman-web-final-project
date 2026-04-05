@@ -29,6 +29,7 @@ export interface IPost extends Document {
   location?: string;
   rating?: number;
   user: mongoose.Types.ObjectId;
+  likes: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
