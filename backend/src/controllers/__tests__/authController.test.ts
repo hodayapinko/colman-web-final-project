@@ -1,41 +1,40 @@
 import { Request, Response } from "express";
-import authController from "../authController";
-import User from "../../models/User.model";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import { AuthController } from "../authController";
+import User from "../../models/User.model";
+import { TokenService } from "../../services/tokenService";
+import { OAuthService } from "../../services/oauthService";
+import * as cookieUtils from "../../utils/cookieUtils";
+import { HTTP_STATUS } from "../../constants/constants";
 
 jest.mock("../../models/User.model");
+jest.mock("../../services/tokenService");
+jest.mock("../../services/oauthService");
+jest.mock("../../utils/cookieUtils");
 jest.mock("bcryptjs");
-jest.mock("jsonwebtoken");
 
-describe("Auth Controller", () => {
+describe("AuthController", () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
+  let jsonMock: jest.Mock;
   let statusMock: jest.Mock;
-  let sendMock: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    sendMock = jest.fn();
-    statusMock = jest.fn().mockReturnValue({ send: sendMock });
-    mockResponse = {
-      status: statusMock,
-      send: sendMock,
-    };
-    mockRequest = { body: {} };
-    process.env.TOKEN_SECRET = "test-secret";
-    process.env.TOKEN_EXPIRES = "1h";
-    process.env.REFRESH_TOKEN_EXPIRES = "7d";
+    jsonMock = jest.fn();
+    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+    mockResponse = { status: statusMock };
+    mockRequest = { body: {}, headers: {}, params: {} };
   });
 
   describe("register", () => {
     it("should register a new user successfully", async () => {
       const mockUser = {
-        _id: "507f1f77bcf86cd799439011",
+        _id: "user123",
         username: "testuser",
         email: "test@example.com",
-        password: "hashedPassword123",
         refreshTokens: [],
+        save: jest.fn(),
       };
 
       mockRequest.body = {
@@ -44,129 +43,142 @@ describe("Auth Controller", () => {
         password: "password123",
       };
 
-      (bcrypt.genSalt as jest.Mock).mockResolvedValue("salt");
-      (bcrypt.hash as jest.Mock).mockResolvedValue("hashedPassword123");
+      (User.findOne as jest.Mock).mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue("hashedpassword");
       (User.create as jest.Mock).mockResolvedValue(mockUser);
+      (TokenService.generateTokenPair as jest.Mock).mockReturnValue({
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+      });
 
-      await authController.register(
+      await AuthController.register(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(bcrypt.genSalt).toHaveBeenCalledWith(10);
-      expect(bcrypt.hash).toHaveBeenCalledWith("password123", "salt");
-      expect(User.create).toHaveBeenCalledWith({
-        username: "testuser",
-        email: "test@example.com",
-        password: "hashedPassword123",
-      });
-      expect(statusMock).toHaveBeenCalledWith(201);
-      expect(sendMock).toHaveBeenCalledWith({
-        _id: mockUser._id,
-        username: mockUser.username,
-        email: mockUser.email,
-      });
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.CREATED);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accessToken: "access-token",
+          refreshToken: "refresh-token",
+          _id: "user123",
+          username: "testuser",
+        })
+      );
     });
 
-    it("should handle registration errors", async () => {
+    it("should return 400 if required fields are missing", async () => {
+      mockRequest.body = { email: "test@example.com" };
+
+      await AuthController.register(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+    });
+
+    it("should return 400 if username is too short", async () => {
+      mockRequest.body = {
+        username: "ab",
+        email: "test@example.com",
+        password: "password123",
+      };
+
+      await AuthController.register(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+    });
+
+    it("should return 400 if email is invalid", async () => {
+      mockRequest.body = {
+        username: "testuser",
+        email: "invalid",
+        password: "password123",
+      };
+
+      await AuthController.register(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+    });
+
+    it("should return 409 if username already exists", async () => {
       mockRequest.body = {
         username: "testuser",
         email: "test@example.com",
         password: "password123",
       };
 
-      const error = new Error("Database error");
-      (bcrypt.genSalt as jest.Mock).mockResolvedValue("salt");
-      (bcrypt.hash as jest.Mock).mockResolvedValue("hashedPassword123");
-      (User.create as jest.Mock).mockRejectedValue(error);
+      (User.findOne as jest.Mock).mockResolvedValueOnce({ username: "testuser" });
 
-      await authController.register(
+      await AuthController.register(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith(error);
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.CONFLICT);
     });
 
-    it("should handle bcrypt errors", async () => {
+    it("should return 409 if email already exists", async () => {
       mockRequest.body = {
         username: "testuser",
         email: "test@example.com",
         password: "password123",
       };
 
-      const error = new Error("Bcrypt error");
-      (bcrypt.genSalt as jest.Mock).mockRejectedValue(error);
+      (User.findOne as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ email: "test@example.com" });
 
-      await authController.register(
+      await AuthController.register(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith(error);
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.CONFLICT);
     });
-    it("should return 400 if username is missing", async () => {
+
+    it("should return 500 if token generation fails", async () => {
       mockRequest.body = {
+        username: "testuser",
         email: "test@example.com",
         password: "password123",
       };
 
-      await authController.register(
+      (User.findOne as jest.Mock).mockResolvedValue(null);
+      (bcrypt.hash as jest.Mock).mockResolvedValue("hashedpassword");
+      (User.create as jest.Mock).mockResolvedValue({
+        _id: "user123",
+        refreshTokens: [],
+        save: jest.fn(),
+      });
+      (TokenService.generateTokenPair as jest.Mock).mockReturnValue(null);
+
+      await AuthController.register(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith({
-        message: "missing username, email or password",
-      });
-    });
-
-    it("should return 400 if email is missing", async () => {
-      mockRequest.body = {
-        username: "testuser",
-        password: "password123",
-      };
-
-      await authController.register(
-        mockRequest as Request,
-        mockResponse as Response,
+      expect(statusMock).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
-
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith({
-        message: "missing username, email or password",
-      });
-    });
-
-    it("should return 400 if password is missing", async () => {
-      mockRequest.body = {
-        username: "testuser",
-        email: "test@example.com",
-      };
-
-      await authController.register(
-        mockRequest as Request,
-        mockResponse as Response,
-      );
-
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith({
-        message: "missing username, email or password",
-      });
     });
   });
 
   describe("login", () => {
-    it("should login successfully with valid credentials", async () => {
+    it("should login successfully with email", async () => {
       const mockUser = {
-        _id: "507f1f77bcf86cd799439011",
-        email: "test@example.com",
-        password: "hashedPassword123",
+        _id: "user123",
+        username: "testuser",
+        password: "hashedpassword",
         refreshTokens: [],
-        save: jest.fn().mockResolvedValue(true),
+        save: jest.fn(),
       };
 
       mockRequest.body = {
@@ -176,383 +188,348 @@ describe("Auth Controller", () => {
 
       (User.findOne as jest.Mock).mockResolvedValue(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-      (jwt.sign as jest.Mock)
-        .mockReturnValueOnce("accessToken123")
-        .mockReturnValueOnce("refreshToken123");
-
-      await authController.login(
-        mockRequest as Request,
-        mockResponse as Response,
-      );
-
-      expect(User.findOne).toHaveBeenCalledWith({ email: "test@example.com" });
-      expect(bcrypt.compare).toHaveBeenCalledWith(
-        "password123",
-        "hashedPassword123",
-      );
-      expect(mockUser.save).toHaveBeenCalled();
-      expect(statusMock).toHaveBeenCalledWith(200);
-      expect(sendMock).toHaveBeenCalledWith({
-        accessToken: "accessToken123",
-        refreshToken: "refreshToken123",
-        _id: mockUser._id,
+      (TokenService.generateTokenPair as jest.Mock).mockReturnValue({
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
       });
+
+      await AuthController.login(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accessToken: "access-token",
+          refreshToken: "refresh-token",
+          _id: "user123",
+          username: "testuser",
+        })
+      );
     });
 
-    it("should return 400 if email is missing", async () => {
-      mockRequest.body = {
-        password: "password123",
-      };
+    it("should return 400 if credentials are missing", async () => {
+      mockRequest.body = {};
 
-      await authController.login(
+      await AuthController.login(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith({
-        message: "missing email or password",
-      });
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
     });
 
-    it("should return 400 if password is missing", async () => {
+    it("should return 400 if user not found", async () => {
       mockRequest.body = {
         email: "test@example.com",
-      };
-
-      await authController.login(
-        mockRequest as Request,
-        mockResponse as Response,
-      );
-
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith({
-        message: "missing email or password",
-      });
-    });
-
-    it("should return 401 if user not found", async () => {
-      mockRequest.body = {
-        email: "nonexistent@example.com",
         password: "password123",
       };
 
       (User.findOne as jest.Mock).mockResolvedValue(null);
 
-      await authController.login(
+      await AuthController.login(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(statusMock).toHaveBeenCalledWith(401);
-      expect(sendMock).toHaveBeenCalledWith({
-        message: "email or password incorrect",
-      });
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
     });
 
-    it("should return 401 if password is incorrect", async () => {
-      const mockUser = {
-        _id: "507f1f77bcf86cd799439011",
-        email: "test@example.com",
-        password: "hashedPassword123",
-        refreshTokens: [],
-      };
-
+    it("should return 400 if password is incorrect", async () => {
       mockRequest.body = {
         email: "test@example.com",
-        password: "wrongPassword",
+        password: "wrongpassword",
       };
 
-      (User.findOne as jest.Mock).mockResolvedValue(mockUser);
+      (User.findOne as jest.Mock).mockResolvedValue({
+        _id: "user123",
+        password: "hashedpassword",
+      });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
-      await authController.login(
+      await AuthController.login(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(bcrypt.compare).toHaveBeenCalledWith(
-        "wrongPassword",
-        "hashedPassword123",
-      );
-      expect(statusMock).toHaveBeenCalledWith(401);
-      expect(sendMock).toHaveBeenCalledWith({
-        message: "email or password incorrect",
-      });
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
     });
 
     it("should return 500 if token generation fails", async () => {
-      const mockUser = {
-        _id: "507f1f77bcf86cd799439011",
+      mockRequest.body = {
         email: "test@example.com",
-        password: "hashedPassword123",
+        password: "password123",
+      };
+
+      (User.findOne as jest.Mock).mockResolvedValue({
+        _id: "user123",
+        password: "hashedpassword",
         refreshTokens: [],
-      };
-
-      mockRequest.body = {
-        email: "test@example.com",
-        password: "password123",
-      };
-
-      process.env.TOKEN_SECRET = "";
-
-      (User.findOne as jest.Mock).mockResolvedValue(mockUser);
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-
-      await authController.login(
-        mockRequest as Request,
-        mockResponse as Response,
-      );
-
-      expect(statusMock).toHaveBeenCalledWith(500);
-      expect(sendMock).toHaveBeenCalledWith({
-        message: "internal server error",
+        save: jest.fn(),
       });
-    });
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (TokenService.generateTokenPair as jest.Mock).mockReturnValue(null);
 
-    it("should handle database errors during login", async () => {
-      mockRequest.body = {
-        email: "test@example.com",
-        password: "password123",
-      };
-
-      const error = new Error("Database error");
-      (User.findOne as jest.Mock).mockRejectedValue(error);
-
-      await authController.login(
+      await AuthController.login(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith(error);
+      expect(statusMock).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
     });
   });
 
-  describe("refresh", () => {
-    it("should refresh tokens successfully", async () => {
+  describe("googleLogin", () => {
+    it("should create a new user on first Google login", async () => {
+      const mockGoogleUser = {
+        email: "google@example.com",
+        name: "Google User",
+        picture: "https://example.com/pic.jpg",
+        googleId: "google123",
+      };
+
       const mockUser = {
-        _id: "507f1f77bcf86cd799439011",
-        email: "test@example.com",
-        refreshTokens: ["oldRefreshToken"],
-        save: jest.fn().mockResolvedValue(true),
+        _id: "user123",
+        username: "Google User",
+        email: "google@example.com",
+        profilePicture: "https://example.com/pic.jpg",
+        refreshTokens: [],
+        save: jest.fn(),
       };
 
-      mockRequest.body = {
-        refreshToken: "oldRefreshToken",
-      };
+      mockRequest.body = { credential: "google-credential" };
 
-      (jwt.verify as jest.Mock).mockImplementation(
-        (token, secret, callback) => {
-          callback(null, { _id: "507f1f77bcf86cd799439011" });
-        },
+      (OAuthService.verifyGoogleToken as jest.Mock).mockResolvedValue(
+        mockGoogleUser
       );
-      (User.findById as jest.Mock).mockResolvedValue(mockUser);
-      (jwt.sign as jest.Mock)
-        .mockReturnValueOnce("newAccessToken")
-        .mockReturnValueOnce("newRefreshToken");
-
-      await authController.refresh(
-        mockRequest as Request,
-        mockResponse as Response,
-      );
-
-      expect(jwt.verify).toHaveBeenCalled();
-      expect(User.findById).toHaveBeenCalledWith("507f1f77bcf86cd799439011");
-      expect(mockUser.save).toHaveBeenCalled();
-      expect(statusMock).toHaveBeenCalledWith(200);
-      expect(sendMock).toHaveBeenCalledWith({
-        accessToken: "newAccessToken",
-        refreshToken: "newRefreshToken",
-        _id: mockUser._id,
+      (User.findOne as jest.Mock).mockResolvedValue(null);
+      (User.create as jest.Mock).mockResolvedValue(mockUser);
+      (TokenService.generateTokenPair as jest.Mock).mockReturnValue({
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
       });
+
+      await AuthController.googleLogin(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(User.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          username: "Google User",
+          email: "google@example.com",
+          googleId: "google123",
+          profilePicture: "https://example.com/pic.jpg",
+        })
+      );
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
     });
 
-    it("should return 400 if refresh token is invalid", async () => {
-      mockRequest.body = {
-        refreshToken: "invalidToken",
+    it("should link googleId to existing user", async () => {
+      const mockGoogleUser = {
+        email: "existing@example.com",
+        name: "Existing User",
+        picture: "https://example.com/pic.jpg",
+        googleId: "google123",
       };
 
-      (jwt.verify as jest.Mock).mockImplementation(
-        (token, secret, callback) => {
-          callback(new Error("Invalid token"), null);
-        },
-      );
+      const mockUser: any = {
+        _id: "user123",
+        username: "existinguser",
+        email: "existing@example.com",
+        profilePicture: "",
+        refreshTokens: [],
+        save: jest.fn(),
+      };
 
-      await authController.refresh(
+      mockRequest.body = { credential: "google-credential" };
+
+      (OAuthService.verifyGoogleToken as jest.Mock).mockResolvedValue(
+        mockGoogleUser
+      );
+      (User.findOne as jest.Mock).mockResolvedValue(mockUser);
+      (TokenService.generateTokenPair as jest.Mock).mockReturnValue({
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+      });
+
+      await AuthController.googleLogin(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith({ message: "fail" });
+      expect(mockUser.googleId).toBe("google123");
+      expect(mockUser.profilePicture).toBe("https://example.com/pic.jpg");
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
     });
 
-    it("should return 400 if refresh token is missing", async () => {
+    it("should return 400 if credential is missing", async () => {
       mockRequest.body = {};
 
-      await authController.refresh(
+      await AuthController.googleLogin(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith({ message: "fail" });
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
     });
 
-    it("should return 400 if user not found", async () => {
-      mockRequest.body = {
-        refreshToken: "validToken",
-      };
-
-      (jwt.verify as jest.Mock).mockImplementation(
-        (token, secret, callback) => {
-          callback(null, { _id: "507f1f77bcf86cd799439011" });
-        },
-      );
-      (User.findById as jest.Mock).mockResolvedValue(null);
-
-      await authController.refresh(
-        mockRequest as Request,
-        mockResponse as Response,
-      );
-
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith({ message: "fail" });
-    });
-
-    it("should invalidate all tokens if refresh token not in user's list", async () => {
+    it("should cap refresh tokens at 5", async () => {
       const mockUser = {
-        _id: "507f1f77bcf86cd799439011",
+        _id: "user123",
+        username: "testuser",
         email: "test@example.com",
-        refreshTokens: ["differentToken"],
-        save: jest.fn().mockResolvedValue(true),
+        googleId: "google123",
+        profilePicture: "pic.jpg",
+        refreshTokens: ["t1", "t2", "t3", "t4", "t5"],
+        save: jest.fn(),
       };
 
-      mockRequest.body = {
-        refreshToken: "notInList",
-      };
+      mockRequest.body = { credential: "google-credential" };
 
-      (jwt.verify as jest.Mock).mockImplementation(
-        (token, secret, callback) => {
-          callback(null, { _id: "507f1f77bcf86cd799439011" });
-        },
-      );
-      (User.findById as jest.Mock).mockResolvedValue(mockUser);
-
-      await authController.refresh(
-        mockRequest as Request,
-        mockResponse as Response,
-      );
-
-      expect(mockUser.refreshTokens).toEqual([]);
-      expect(mockUser.save).toHaveBeenCalled();
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith({ message: "fail" });
-    });
-
-    it("should return 500 if token generation fails during refresh", async () => {
-      const mockUser = {
-        _id: "507f1f77bcf86cd799439011",
+      (OAuthService.verifyGoogleToken as jest.Mock).mockResolvedValue({
         email: "test@example.com",
-        refreshTokens: ["validToken"],
-        save: jest.fn().mockResolvedValue(true),
-      };
-
-      mockRequest.body = {
-        refreshToken: "validToken",
-      };
-
-      // Set TOKEN_SECRET so verifyRefreshToken succeeds
-      process.env.TOKEN_SECRET = "test-secret";
-      // But then clear it after jwt.verify is called to make generateToken fail
-      (jwt.verify as jest.Mock).mockImplementation(
-        (token, secret, callback) => {
-          callback(null, { _id: "507f1f77bcf86cd799439011" });
-          // Clear TOKEN_SECRET after verify succeeds
-          process.env.TOKEN_SECRET = "";
-        },
-      );
-      (User.findById as jest.Mock).mockResolvedValue(mockUser);
-
-      await authController.refresh(
-        mockRequest as Request,
-        mockResponse as Response,
-      );
-
-      expect(statusMock).toHaveBeenCalledWith(500);
-      expect(sendMock).toHaveBeenCalledWith({
-        message: "internal server error",
+        googleId: "google123",
+        picture: "pic.jpg",
       });
-      
-      // Restore TOKEN_SECRET for other tests
-      process.env.TOKEN_SECRET = "test-secret";
+      (User.findOne as jest.Mock).mockResolvedValue(mockUser);
+      (TokenService.generateTokenPair as jest.Mock).mockReturnValue({
+        accessToken: "access-token",
+        refreshToken: "new-refresh-token",
+      });
+
+      await AuthController.googleLogin(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      // Should have sliced to 4 + pushed 1 = 5
+      expect(mockUser.refreshTokens.length).toBe(5);
+      expect(
+        mockUser.refreshTokens[mockUser.refreshTokens.length - 1]
+      ).toBe("new-refresh-token");
+    });
+
+    it("should return 500 if token generation fails", async () => {
+      mockRequest.body = { credential: "google-credential" };
+
+      (OAuthService.verifyGoogleToken as jest.Mock).mockResolvedValue({
+        email: "test@example.com",
+        googleId: "google123",
+      });
+      (User.findOne as jest.Mock).mockResolvedValue(null);
+      (User.create as jest.Mock).mockResolvedValue({
+        _id: "user123",
+        refreshTokens: [],
+        save: jest.fn(),
+      });
+      (TokenService.generateTokenPair as jest.Mock).mockReturnValue(null);
+
+      await AuthController.googleLogin(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
     });
   });
 
   describe("logout", () => {
     it("should logout successfully", async () => {
       const mockUser = {
-        _id: "507f1f77bcf86cd799439011",
-        email: "test@example.com",
-        refreshTokens: ["validToken", "anotherToken"],
-        save: jest.fn().mockResolvedValue(true),
+        refreshTokens: ["refresh-token"],
+        save: jest.fn(),
       };
 
-      mockRequest.body = {
-        refreshToken: "validToken",
-      };
-
-      (jwt.verify as jest.Mock).mockImplementation(
-        (token, secret, callback) => {
-          callback(null, { _id: "507f1f77bcf86cd799439011" });
-        },
+      (cookieUtils.getRefreshTokenFromRequest as jest.Mock).mockReturnValue(
+        "refresh-token"
       );
+      (TokenService.verifyToken as jest.Mock).mockResolvedValue({
+        _id: "user123",
+        tokenType: "refresh",
+      });
+      (TokenService.assertTokenType as jest.Mock).mockImplementation(
+        () => undefined
+      );
+      (TokenService.extractUserId as jest.Mock).mockReturnValue("user123");
       (User.findById as jest.Mock).mockResolvedValue(mockUser);
 
-      await authController.logout(
+      await AuthController.logout(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(jwt.verify).toHaveBeenCalled();
-      expect(User.findById).toHaveBeenCalledWith("507f1f77bcf86cd799439011");
-      expect(mockUser.refreshTokens).toEqual(["anotherToken"]);
-      expect(mockUser.save).toHaveBeenCalled();
-      expect(statusMock).toHaveBeenCalledWith(200);
-      expect(sendMock).toHaveBeenCalledWith({ message: "logout success" });
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "logout success" });
+      expect(cookieUtils.clearRefreshCookie).toHaveBeenCalled();
     });
 
-    it("should return 400 if logout fails", async () => {
-      mockRequest.body = {
-        refreshToken: "invalidToken",
+    it("should logout even without refresh token", async () => {
+      (cookieUtils.getRefreshTokenFromRequest as jest.Mock).mockReturnValue(
+        null
+      );
+
+      await AuthController.logout(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "logout success" });
+    });
+  });
+
+  describe("me", () => {
+    it("should return current user", async () => {
+      const mockUser = {
+        _id: "user123",
+        username: "testuser",
+        email: "test@example.com",
+        profilePicture: "pic.jpg",
       };
 
-      (jwt.verify as jest.Mock).mockImplementation(
-        (token, secret, callback) => {
-          callback(new Error("Invalid token"), null);
-        },
-      );
+      (mockRequest as any).userId = "user123";
+      (User.findById as jest.Mock).mockReturnValue({
+        select: jest.fn().mockResolvedValue(mockUser),
+      });
 
-      await authController.logout(
+      await AuthController.me(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith({ message: "failed to Logout" });
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
+      expect(jsonMock).toHaveBeenCalledWith(mockUser);
     });
 
-    it("should return 400 if refresh token is missing during logout", async () => {
-      mockRequest.body = {};
+    it("should return 401 if no userId", async () => {
+      (mockRequest as any).userId = undefined;
 
-      await authController.logout(
+      await AuthController.me(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
-      expect(statusMock).toHaveBeenCalledWith(400);
-      expect(sendMock).toHaveBeenCalledWith({ message: "failed to Logout" });
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.UNAUTHORIZED);
+    });
+
+    it("should return 404 if user not found", async () => {
+      (mockRequest as any).userId = "user123";
+      (User.findById as jest.Mock).mockReturnValue({
+        select: jest.fn().mockResolvedValue(null),
+      });
+
+      await AuthController.me(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND);
     });
   });
 });

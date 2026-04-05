@@ -1,5 +1,6 @@
 import { Router } from "express";
-import authController from "../controllers/authController";
+import { AuthController } from "../controllers/authController";
+import { authMiddleware } from "../middleware/authMiddleware";
 
 const router = Router();
 
@@ -65,14 +66,14 @@ const router = Router();
  *       500:
  *         description: Internal server error
  */
-router.post("/register", authController.register);
+router.post("/register", AuthController.register);
 
 /**
  * @swagger
  * /auth/login:
  *   post:
  *     summary: Login user
- *     description: Authenticates a user and returns access and refresh tokens
+ *     description: Authenticates a user and returns an access token. A refresh token is stored in an HTTP-only cookie.
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -81,14 +82,18 @@ router.post("/register", authController.register);
  *           schema:
  *             type: object
  *             required:
- *               - email
+ *               - password
  *               - password
  *             properties:
  *               email:
  *                 type: string
  *                 format: email
- *                 description: User email address
+ *                 description: User email address (optional if username is provided)
  *                 example: "user@example.com"
+ *               username:
+ *                 type: string
+ *                 description: Username (optional if email is provided)
+ *                 example: "testuser"
  *               password:
  *                 type: string
  *                 description: User password
@@ -105,16 +110,12 @@ router.post("/register", authController.register);
  *                   type: string
  *                   description: JWT access token
  *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *                 refreshToken:
- *                   type: string
- *                   description: JWT refresh token
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *                 _id:
  *                   type: string
  *                   description: User ID
  *                   example: "507f1f77bcf86cd799439011"
  *       400:
- *         description: Bad request - Missing email or password
+ *         description: Bad request - Missing username/email or password
  *         content:
  *           application/json:
  *             schema:
@@ -144,14 +145,14 @@ router.post("/register", authController.register);
  *                   type: string
  *                   example: "internal server error"
  */
-router.post("/login", authController.login);
+router.post("/login", AuthController.login);
 
 /**
  * @swagger
- * /auth/refresh:
+ * /auth/google:
  *   post:
- *     summary: Refresh access token
- *     description: Generates new access and refresh tokens using a valid refresh token
+ *     summary: Login/register using Google
+ *     description: Verifies a Google ID token and returns an access token. A refresh token is stored in an HTTP-only cookie.
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -160,11 +161,38 @@ router.post("/login", authController.login);
  *           schema:
  *             type: object
  *             required:
- *               - refreshToken
+ *               - idToken
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 description: Google ID token from the client
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       400:
+ *         description: Missing idToken
+ *       401:
+ *         description: Invalid Google token
+ */
+router.post("/google", AuthController.googleLogin);
+
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Refresh access token
+ *     description: Generates a new access token using a valid refresh token from an HTTP-only cookie (or request body).
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
  *             properties:
  *               refreshToken:
  *                 type: string
- *                 description: Valid refresh token
+ *                 description: Optional refresh token (if cookie is not used)
  *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *     responses:
  *       200:
@@ -177,10 +205,6 @@ router.post("/login", authController.login);
  *                 accessToken:
  *                   type: string
  *                   description: New JWT access token
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
- *                 refreshToken:
- *                   type: string
- *                   description: New JWT refresh token
  *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *                 _id:
  *                   type: string
@@ -207,7 +231,7 @@ router.post("/login", authController.login);
  *                   type: string
  *                   example: "internal server error"
  */
-router.post("/refresh", authController.refresh);
+router.post("/refresh", AuthController.refresh);
 
 /**
  * @swagger
@@ -222,12 +246,10 @@ router.post("/refresh", authController.refresh);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - refreshToken
  *             properties:
  *               refreshToken:
  *                 type: string
- *                 description: Valid refresh token to invalidate
+ *                 description: Optional refresh token to invalidate (if cookie is not used)
  *                 example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
  *     responses:
  *       200:
@@ -251,6 +273,23 @@ router.post("/refresh", authController.refresh);
  *                   type: string
  *                   example: "failed to Logout"
  */
-router.post("/logout", authController.logout);
+router.post("/logout", AuthController.logout);
+
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Get current user
+ *     description: Returns the currently authenticated user profile
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/me", authMiddleware, AuthController.me);
 
 export default router;

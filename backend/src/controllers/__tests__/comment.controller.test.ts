@@ -176,7 +176,7 @@ describe("Comment Controller", () => {
       await createComment(mockRequest as Request, mockResponse as Response);
 
       expect(statusMock).toHaveBeenCalledWith(
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
@@ -230,13 +230,13 @@ describe("Comment Controller", () => {
 
     it("should handle database errors", async () => {
       (Comment.find as jest.Mock).mockRejectedValue(
-        new Error("Database error"),
+        new Error("Database error")
       );
 
       await getAllComments(mockRequest as Request, mockResponse as Response);
 
       expect(statusMock).toHaveBeenCalledWith(
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
@@ -284,13 +284,13 @@ describe("Comment Controller", () => {
     it("should handle database errors", async () => {
       mockRequest.params = { id: "123" };
       (Comment.findById as jest.Mock).mockRejectedValue(
-        new Error("Database error"),
+        new Error("Database error")
       );
 
       await getCommentById(mockRequest as Request, mockResponse as Response);
 
       expect(statusMock).toHaveBeenCalledWith(
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
@@ -322,7 +322,7 @@ describe("Comment Controller", () => {
 
       await getCommentsByPostId(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
       expect(Comment.find).toHaveBeenCalledWith({ postId });
@@ -339,7 +339,7 @@ describe("Comment Controller", () => {
 
       await getCommentsByPostId(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
@@ -355,7 +355,7 @@ describe("Comment Controller", () => {
 
       await getCommentsByPostId(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
@@ -370,16 +370,16 @@ describe("Comment Controller", () => {
     it("should handle database errors", async () => {
       mockRequest.params = { postId: "507f1f77bcf86cd799439011" };
       (Comment.find as jest.Mock).mockRejectedValue(
-        new Error("Database error"),
+        new Error("Database error")
       );
 
       await getCommentsByPostId(
         mockRequest as Request,
-        mockResponse as Response,
+        mockResponse as Response
       );
 
       expect(statusMock).toHaveBeenCalledWith(
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
@@ -463,13 +463,13 @@ describe("Comment Controller", () => {
       mockRequest.params = { id: "123" };
       mockRequest.body = { content: "Updated content" };
       (Comment.findById as jest.Mock).mockRejectedValue(
-        new Error("Database error"),
+        new Error("Database error")
       );
 
       await updateComment(mockRequest as Request, mockResponse as Response);
 
       expect(statusMock).toHaveBeenCalledWith(
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
@@ -490,7 +490,7 @@ describe("Comment Controller", () => {
       };
       mockRequest.params = { id: commentId };
       (Comment.findByIdAndDelete as jest.Mock).mockResolvedValue(
-        deletedComment,
+        deletedComment
       );
 
       await deleteComment(mockRequest as Request, mockResponse as Response);
@@ -520,13 +520,13 @@ describe("Comment Controller", () => {
     it("should handle database errors", async () => {
       mockRequest.params = { id: "507f1f77bcf86cd799439011" };
       (Comment.findByIdAndDelete as jest.Mock).mockRejectedValue(
-        new Error("Database error"),
+        new Error("Database error")
       );
 
       await deleteComment(mockRequest as Request, mockResponse as Response);
 
       expect(statusMock).toHaveBeenCalledWith(
-        HTTP_STATUS.INTERNAL_SERVER_ERROR,
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
       );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,

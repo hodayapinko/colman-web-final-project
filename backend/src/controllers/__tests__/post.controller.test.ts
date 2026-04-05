@@ -48,7 +48,11 @@ describe("Post Controller", () => {
         },
       ];
 
-      (Post.find as jest.Mock).mockResolvedValue(mockPosts);
+      (Post.find as jest.Mock).mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          sort: jest.fn().mockResolvedValue(mockPosts),
+        }),
+      });
 
       await getAllPosts(mockRequest as Request, mockResponse as Response);
 
@@ -62,7 +66,11 @@ describe("Post Controller", () => {
     });
 
     it("should handle database errors", async () => {
-      (Post.find as jest.Mock).mockRejectedValue(new Error("DB error"));
+      (Post.find as jest.Mock).mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          sort: jest.fn().mockRejectedValue(new Error("DB error")),
+        }),
+      });
 
       await getAllPosts(mockRequest as Request, mockResponse as Response);
 
@@ -99,7 +107,8 @@ describe("Post Controller", () => {
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
       expect(jsonMock).toHaveBeenCalledWith({
         success: true,
-        message: "Posts by user 507f1f77bcf86cd799439012 retrieved successfully",
+        message:
+          "Posts by user 507f1f77bcf86cd799439012 retrieved successfully",
         data: mockPosts,
       });
     });
@@ -122,7 +131,9 @@ describe("Post Controller", () => {
 
       await getPostsByUserId(mockRequest as Request, mockResponse as Response);
 
-      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      expect(statusMock).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         message: "Internal server error",
@@ -173,7 +184,9 @@ describe("Post Controller", () => {
 
       await getPostById(mockRequest as Request, mockResponse as Response);
 
-      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      expect(statusMock).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         message: "Internal server error",
@@ -200,7 +213,9 @@ describe("Post Controller", () => {
       };
 
       mockRequest.body = mockPostData;
-      (findUserById as jest.Mock).mockResolvedValue({ _id: mockPostData.userId });
+      (findUserById as jest.Mock).mockResolvedValue({
+        _id: mockPostData.userId,
+      });
       (Post as any).mockImplementation(() => ({
         save: jest.fn().mockResolvedValue(mockSavedPost),
       }));
@@ -227,7 +242,8 @@ describe("Post Controller", () => {
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
-        message: "Missing required fields: title, content, and userId are required",
+        message:
+          "Missing required fields: title, content, and userId are required",
       });
     });
 
@@ -272,7 +288,9 @@ describe("Post Controller", () => {
         userId: "507f1f77bcf86cd799439012",
       };
 
-      (findUserById as jest.Mock).mockResolvedValue({ _id: "507f1f77bcf86cd799439012" });
+      (findUserById as jest.Mock).mockResolvedValue({
+        _id: "507f1f77bcf86cd799439012",
+      });
 
       const validationError = {
         name: "ValidationError",
@@ -302,14 +320,18 @@ describe("Post Controller", () => {
         userId: "507f1f77bcf86cd799439012",
       };
 
-      (findUserById as jest.Mock).mockResolvedValue({ _id: "507f1f77bcf86cd799439012" });
+      (findUserById as jest.Mock).mockResolvedValue({
+        _id: "507f1f77bcf86cd799439012",
+      });
       (Post as any).mockImplementation(() => ({
         save: jest.fn().mockRejectedValue(new Error("DB error")),
       }));
 
       await createPost(mockRequest as Request, mockResponse as Response);
 
-      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      expect(statusMock).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         message: "Internal server error",
@@ -339,7 +361,7 @@ describe("Post Controller", () => {
 
       expect(Post.findByIdAndUpdate).toHaveBeenCalledWith(
         "507f1f77bcf86cd799439011",
-        { title: "Updated Title", content: "Updated content" },
+        { $set: { title: "Updated Title", content: "Updated content" } },
         { new: true, runValidators: true }
       );
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
@@ -374,8 +396,7 @@ describe("Post Controller", () => {
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
-        message:
-          "At least one field (title, content, or userId) must be provided for update",
+        message: "At least one field must be provided for update",
       });
     });
 
@@ -390,7 +411,9 @@ describe("Post Controller", () => {
       mockRequest.params = { id: "507f1f77bcf86cd799439011" };
       mockRequest.body = { userId: "507f1f77bcf86cd799439015" };
 
-      (findUserById as jest.Mock).mockResolvedValue({ _id: "507f1f77bcf86cd799439015" });
+      (findUserById as jest.Mock).mockResolvedValue({
+        _id: "507f1f77bcf86cd799439015",
+      });
       (Post.findByIdAndUpdate as jest.Mock).mockResolvedValue(mockUpdatedPost);
 
       await updatePost(mockRequest as Request, mockResponse as Response);
@@ -454,11 +477,15 @@ describe("Post Controller", () => {
       mockRequest.params = { id: "507f1f77bcf86cd799439011" };
       mockRequest.body = { title: "Updated Title" };
 
-      (Post.findByIdAndUpdate as jest.Mock).mockRejectedValue(new Error("DB error"));
+      (Post.findByIdAndUpdate as jest.Mock).mockRejectedValue(
+        new Error("DB error")
+      );
 
       await updatePost(mockRequest as Request, mockResponse as Response);
 
-      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      expect(statusMock).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         message: "Internal server error",

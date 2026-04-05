@@ -32,7 +32,12 @@ const EmptyStateView: React.FC<EmptyStateViewProps> = ({
 
     <Typography
       variant="h5"
-      sx={{ fontWeight: 700, color: "#1A1A2E", textAlign: "center", fontSize: "1.3rem" }}
+      sx={{
+        fontWeight: 700,
+        color: "#1A1A2E",
+        textAlign: "center",
+        fontSize: "1.3rem",
+      }}
     >
       {heading}
     </Typography>

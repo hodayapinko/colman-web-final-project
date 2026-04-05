@@ -8,11 +8,7 @@ const storage = multer.diskStorage({
     cb(null, "public/");
   },
   filename: function (req, file, cb) {
-    const ext = file.originalname
-      .split(".")
-      .filter(Boolean)
-      .slice(1)
-      .join(".");
+    const ext = file.originalname.split(".").filter(Boolean).slice(1).join(".");
     cb(null, Date.now() + "." + ext);
   },
 });
@@ -24,7 +20,8 @@ router.post("/", upload.single("file"), function (req, res) {
     res.status(400).send({ message: "No file uploaded" });
     return;
   }
-  const base = "http://" + process.env.DOMAIN_BASE + ":" + process.env.PORT + "/";
+  const base =
+    "http://" + process.env.DOMAIN_BASE + ":" + process.env.PORT + "/";
   const filePath = req.file.path.replace(/\\/g, "/");
   console.log("router.post(/file: " + base + filePath);
   res.status(200).send({ url: base + filePath });

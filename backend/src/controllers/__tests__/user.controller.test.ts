@@ -1,5 +1,11 @@
 import { Request, Response } from "express";
-import { createUser, getAllUsers, getUserById, updateUser, deleteUser } from "../user.controller";
+import {
+  createUser,
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+} from "../user.controller";
 import User from "../../models/User.model";
 import { HTTP_STATUS } from "../../constants/constants";
 
@@ -74,7 +80,11 @@ describe("getUserById", () => {
   });
 
   it("should return user by id successfully", async () => {
-    const mockUser = { _id: "123", username: "testuser", email: "test@example.com" };
+    const mockUser = {
+      _id: "123",
+      username: "testuser",
+      email: "test@example.com",
+    };
     mockRequest.params = { id: "123" };
     (User.findById as jest.Mock).mockResolvedValue(mockUser);
     await getUserById(mockRequest as Request, mockResponse as Response);
@@ -121,7 +131,11 @@ describe("updateUser", () => {
   });
 
   it("should update user successfully", async () => {
-    const updatedData = { username: "updateduser", email: "updated@example.com", age: 30 };
+    const updatedData = {
+      username: "updateduser",
+      email: "updated@example.com",
+      age: 30,
+    };
     const mockUser = { _id: "123", ...updatedData };
     mockRequest.params = { id: "123" };
     mockRequest.body = updatedData;
@@ -222,7 +236,9 @@ describe("createUser", () => {
 
   it("should return 409 if username already exists", async () => {
     mockRequest.body = { username: "existinguser", email: "new@example.com" };
-    (User.findOne as jest.Mock).mockResolvedValueOnce({ username: "existinguser" });
+    (User.findOne as jest.Mock).mockResolvedValueOnce({
+      username: "existinguser",
+    });
     await createUser(mockRequest as Request, mockResponse as Response);
     expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.CONFLICT);
     expect(jsonMock).toHaveBeenCalledWith({
@@ -237,7 +253,9 @@ describe("createUser", () => {
     mockRequest.body = userData;
     (User.findOne as jest.Mock).mockResolvedValue(null);
     const saveMock = jest.fn().mockResolvedValue(savedUser);
-    (User as unknown as jest.Mock).mockImplementation(() => ({ save: saveMock }));
+    (User as unknown as jest.Mock).mockImplementation(() => ({
+      save: saveMock,
+    }));
     await createUser(mockRequest as Request, mockResponse as Response);
     expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.CREATED);
     expect(jsonMock).toHaveBeenCalledWith({
@@ -269,7 +287,9 @@ describe("createUser", () => {
       message: "Validation failed",
     };
     const saveMock = jest.fn().mockRejectedValue(validationError);
-    (User as unknown as jest.Mock).mockImplementation(() => ({ save: saveMock }));
+    (User as unknown as jest.Mock).mockImplementation(() => ({
+      save: saveMock,
+    }));
     await createUser(mockRequest as Request, mockResponse as Response);
     expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
     expect(jsonMock).toHaveBeenCalledWith({
@@ -288,7 +308,9 @@ describe("createUser", () => {
       keyPattern: { username: 1 },
     };
     const saveMock = jest.fn().mockRejectedValue(duplicateError);
-    (User as unknown as jest.Mock).mockImplementation(() => ({ save: saveMock }));
+    (User as unknown as jest.Mock).mockImplementation(() => ({
+      save: saveMock,
+    }));
     await createUser(mockRequest as Request, mockResponse as Response);
     expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.CONFLICT);
     expect(jsonMock).toHaveBeenCalledWith({
@@ -302,7 +324,9 @@ describe("createUser", () => {
     mockRequest.body = userData;
     (User.findOne as jest.Mock).mockResolvedValue(null);
     const saveMock = jest.fn().mockRejectedValue(new Error("Server error"));
-    (User as unknown as jest.Mock).mockImplementation(() => ({ save: saveMock }));
+    (User as unknown as jest.Mock).mockImplementation(() => ({
+      save: saveMock,
+    }));
     await createUser(mockRequest as Request, mockResponse as Response);
     expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
     expect(jsonMock).toHaveBeenCalledWith({
@@ -329,7 +353,11 @@ describe("deleteUser", () => {
 
   it("should delete user successfully", async () => {
     const userId = "507f1f77bcf86cd799439011";
-    const deletedUser = { _id: userId, username: "testuser", email: "test@example.com" };
+    const deletedUser = {
+      _id: userId,
+      username: "testuser",
+      email: "test@example.com",
+    };
     mockRequest.params = { id: userId };
     (User.findByIdAndDelete as jest.Mock).mockResolvedValue(deletedUser);
     await deleteUser(mockRequest as Request, mockResponse as Response);
@@ -354,7 +382,9 @@ describe("deleteUser", () => {
 
   it("should handle database error", async () => {
     mockRequest.params = { id: "507f1f77bcf86cd799439011" };
-    (User.findByIdAndDelete as jest.Mock).mockRejectedValue(new Error("Database error"));
+    (User.findByIdAndDelete as jest.Mock).mockRejectedValue(
+      new Error("Database error")
+    );
     await deleteUser(mockRequest as Request, mockResponse as Response);
     expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
     expect(jsonMock).toHaveBeenCalledWith({

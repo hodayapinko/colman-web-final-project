@@ -1,6 +1,12 @@
 import React, { useEffect, useState, type FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Box, Typography, IconButton, TextField, CircularProgress } from "@mui/material";
+import {
+  Box,
+  Typography,
+  IconButton,
+  TextField,
+  CircularProgress,
+} from "@mui/material";
 import { SendOutlined } from "@mui/icons-material";
 import { postService, type IPost } from "../services/postService";
 import { commentService, type IComment } from "../services/commentService";
@@ -37,11 +43,17 @@ const CommentsPage: React.FC = () => {
     setSubmitting(true);
     setCommentError("");
     try {
-      const res = await commentService.create({ postId, content: newComment, userId: user._id });
+      const res = await commentService.create({
+        postId,
+        content: newComment,
+        userId: user._id,
+      });
       setComments((prev) => [...prev, res.data]);
       setNewComment("");
     } catch (err: any) {
-      setCommentError(err?.response?.data?.message || "Failed to post comment.");
+      setCommentError(
+        err?.response?.data?.message || "Failed to post comment."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -54,7 +66,15 @@ const CommentsPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "#F8F9FA" }}>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "#F8F9FA",
+        }}
+      >
         <CircularProgress sx={{ color: "#6344F5" }} />
       </Box>
     );
@@ -62,14 +82,30 @@ const CommentsPage: React.FC = () => {
 
   if (!post) {
     return (
-      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "#F8F9FA" }}>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "#F8F9FA",
+        }}
+      >
         <Typography color="error">Review not found.</Typography>
       </Box>
     );
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#F8F9FA", display: "flex", flexDirection: "column", pb: user ? "120px" : "80px" }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        bgcolor: "#F8F9FA",
+        display: "flex",
+        flexDirection: "column",
+        pb: user ? "120px" : "80px",
+      }}
+    >
       <PageTopBar
         title="Review & Comments"
         subtitle={`${comments.length} comment${comments.length !== 1 ? "s" : ""}`}
@@ -79,12 +115,26 @@ const CommentsPage: React.FC = () => {
       <Box sx={{ flex: 1, px: 2, pt: 2 }}>
         <ReviewCard post={post} />
 
-        <Typography sx={{ fontWeight: 700, color: "#1A1A2E", mb: 1.5, fontSize: "0.95rem" }}>
+        <Typography
+          sx={{
+            fontWeight: 700,
+            color: "#1A1A2E",
+            mb: 1.5,
+            fontSize: "0.95rem",
+          }}
+        >
           Comments ({comments.length})
         </Typography>
 
         {comments.length === 0 && (
-          <Typography sx={{ fontSize: "0.88rem", color: "#9E9EB0", textAlign: "center", py: 2 }}>
+          <Typography
+            sx={{
+              fontSize: "0.88rem",
+              color: "#9E9EB0",
+              textAlign: "center",
+              py: 2,
+            }}
+          >
             No comments yet. Be the first!
           </Typography>
         )}
@@ -104,9 +154,17 @@ const CommentsPage: React.FC = () => {
           component="form"
           onSubmit={handleAddComment}
           sx={{
-            position: "fixed", bottom: 64, left: 0, right: 0,
-            bgcolor: "#fff", borderTop: "1px solid #EBEBF0",
-            px: 2, py: 1.25, display: "flex", alignItems: "center", gap: 1,
+            position: "fixed",
+            bottom: 64,
+            left: 0,
+            right: 0,
+            bgcolor: "#fff",
+            borderTop: "1px solid #EBEBF0",
+            px: 2,
+            py: 1.25,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
           }}
         >
           <TextField
@@ -117,12 +175,22 @@ const CommentsPage: React.FC = () => {
             onChange={(e) => setNewComment(e.target.value)}
             error={!!commentError}
             helperText={commentError || undefined}
-            sx={{ "& .MuiOutlinedInput-root": { borderRadius: 3, fontSize: "0.9rem" } }}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 3,
+                fontSize: "0.9rem",
+              },
+            }}
           />
           <IconButton
             type="submit"
             disabled={submitting || !newComment.trim()}
-            sx={{ bgcolor: "#6344F5", color: "#fff", "&:hover": { bgcolor: "#512DC8" }, "&.Mui-disabled": { bgcolor: "#C7B9FF", color: "#fff" } }}
+            sx={{
+              bgcolor: "#6344F5",
+              color: "#fff",
+              "&:hover": { bgcolor: "#512DC8" },
+              "&.Mui-disabled": { bgcolor: "#C7B9FF", color: "#fff" },
+            }}
           >
             <SendOutlined sx={{ fontSize: 18 }} />
           </IconButton>

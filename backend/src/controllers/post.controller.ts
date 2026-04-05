@@ -6,7 +6,10 @@ import { HTTP_STATUS } from "../constants/constants";
 import mongoose from "mongoose";
 import { findUserById } from "./shared/functions";
 
-export const getAllPosts = async (req: Request, res: Response): Promise<void> => {
+export const getAllPosts = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const posts = await Post.find()
       .populate("user", "username profilePicture")
@@ -27,7 +30,10 @@ export const getAllPosts = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-export const getPostsByUserId = async (req: Request, res: Response): Promise<void> => {
+export const getPostsByUserId = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     // userId is guaranteed to exist because the router checks for it before calling this function
     const { userId } = req.query;
@@ -57,7 +63,10 @@ export const getPostsByUserId = async (req: Request, res: Response): Promise<voi
   }
 };
 
-export const getPostById = async (req: Request, res: Response): Promise<void> => {
+export const getPostById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -86,7 +95,10 @@ export const getPostById = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-export const createPost = async (req: Request, res: Response): Promise<void> => {
+export const createPost = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { title, content, userId, image, location, rating } = req.body as {
       title: string;
@@ -100,7 +112,8 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     if (!title || !content || !userId) {
       res.status(HTTP_STATUS.BAD_REQUEST).json({
         success: false,
-        message: "Missing required fields: title, content, and userId are required",
+        message:
+          "Missing required fields: title, content, and userId are required",
       });
       return;
     }
@@ -158,28 +171,32 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-export const updatePost = async (req: Request, res: Response): Promise<void> => {
+export const updatePost = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { id } = req.params;
-    const { title, content, userId, image, location, rating } = req.body as Partial<{
-      title: string;
-      content: string;
-      userId: string;
-      image: string;
-      location: string;
-      rating: number;
-    }>;
+    const { title, content, userId, image, location, rating } =
+      req.body as Partial<{
+        title: string;
+        content: string;
+        userId: string;
+        image: string;
+        location: string;
+        rating: number;
+      }>;
 
     // Build update object with only provided fields
-    const updateData: Partial<{ 
-      title: string; 
-      content: string; 
+    const updateData: Partial<{
+      title: string;
+      content: string;
       user: string;
       image: string;
       location: string;
       rating: number;
     }> = {};
-    
+
     if (title !== undefined) updateData.title = title;
     if (content !== undefined) updateData.content = content;
     if (image !== undefined && image !== "") updateData.image = image;
@@ -193,7 +210,7 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
         });
         return;
       }
-      
+
       // Ensure user exists
       const userExists = await findUserById(userId);
       if (!userExists) {
@@ -216,12 +233,17 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
     }
 
     // If image is being changed or removed, delete the old file from disk
-    const imageIsChanging = image !== undefined && (image === "" || (image !== "" && updateData.image !== undefined));
+    const imageIsChanging =
+      image !== undefined &&
+      (image === "" || (image !== "" && updateData.image !== undefined));
     if (imageIsChanging) {
       const existingPost = await Post.findById(id).select("image");
       if (existingPost?.image) {
         // Image URLs look like http://host:port/public/filename.ext — extract the relative path
-        const oldRelative = existingPost.image.replace(/^https?:\/\/[^/]+\//, "");
+        const oldRelative = existingPost.image.replace(
+          /^https?:\/\/[^/]+\//,
+          ""
+        );
         const oldAbsolute = path.join(process.cwd(), oldRelative);
         if (fs.existsSync(oldAbsolute)) {
           fs.unlinkSync(oldAbsolute);
@@ -270,19 +292,26 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-export const toggleLike = async (req: Request, res: Response): Promise<void> => {
+export const toggleLike = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { id } = req.params;
     const { userId } = req.body as { userId: string };
 
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({ success: false, message: "Invalid userId" });
+      res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ success: false, message: "Invalid userId" });
       return;
     }
 
     const post = await Post.findById(id);
     if (!post) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({ success: false, message: "Post not found" });
+      res
+        .status(HTTP_STATUS.NOT_FOUND)
+        .json({ success: false, message: "Post not found" });
       return;
     }
 
@@ -303,11 +332,20 @@ export const toggleLike = async (req: Request, res: Response): Promise<void> => 
       data: { likes: post.likes, liked: !alreadyLiked },
     });
   } catch (error: any) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ success: false, message: "Internal server error", error: error.message });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({
+        success: false,
+        message: "Internal server error",
+        error: error.message,
+      });
   }
 };
 
-export const deletePost = async (req: Request, res: Response): Promise<void> => {
+export const deletePost = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { id } = req.params;
 

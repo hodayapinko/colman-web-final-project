@@ -123,7 +123,8 @@ const options: swaggerJsdoc.Options = {
               type: "string",
               description: "Post content (minimum 10 characters)",
               minLength: 10,
-              example: "This is a comprehensive guide to getting started with Node.js development.",
+              example:
+                "This is a comprehensive guide to getting started with Node.js development.",
             },
             user: {
               type: "string",

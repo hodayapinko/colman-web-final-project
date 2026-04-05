@@ -1,83 +1,118 @@
 import { Request, Response, NextFunction } from "express";
 import { authMiddleware } from "../authMiddleware";
-import jwt from "jsonwebtoken";
+import { TokenService } from "../../services/tokenService";
 
-jest.mock("jsonwebtoken");
+jest.mock("../../services/tokenService");
 
 describe("authMiddleware", () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
   let mockNext: NextFunction;
   let statusMock: jest.Mock;
-  let sendMock: jest.Mock;
+  let jsonMock: jest.Mock;
 
   beforeEach(() => {
     statusMock = jest.fn().mockReturnThis();
-    sendMock = jest.fn();
+    jsonMock = jest.fn();
     mockRequest = {
-      header: jest.fn(),
+      headers: {},
       params: {},
     };
     mockResponse = {
       status: statusMock,
-      send: sendMock,
+      json: jsonMock,
     };
     mockNext = jest.fn();
-    process.env.TOKEN_SECRET = "test-secret";
+    process.env.ACCESS_TOKEN_SECRET = "test-access-secret";
+    process.env.REFRESH_TOKEN_SECRET = "test-refresh-secret";
     jest.clearAllMocks();
   });
 
-  it("should return 401 if no token is provided", () => {
-    (mockRequest.header as jest.Mock).mockReturnValue(undefined);
+  it("should return 401 if no token is provided", async () => {
+    mockRequest.headers = {};
 
-    authMiddleware(mockRequest as Request, mockResponse as Response, mockNext);
-
-    expect(statusMock).toHaveBeenCalledWith(401);
-    expect(mockNext).not.toHaveBeenCalled();
-  });
-
-  it("should return 401 if authorization header is missing token", () => {
-    (mockRequest.header as jest.Mock).mockReturnValue("Bearer ");
-
-    authMiddleware(mockRequest as Request, mockResponse as Response, mockNext);
+    await authMiddleware(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext
+    );
 
     expect(statusMock).toHaveBeenCalledWith(401);
+    expect(jsonMock).toHaveBeenCalledWith({ message: "Unauthorized" });
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  it("should return 500 if TOKEN_SECRET is not defined", () => {
-    delete process.env.TOKEN_SECRET;
-    (mockRequest.header as jest.Mock).mockReturnValue("Bearer validtoken");
+  it("should return 401 if authorization header is missing token", async () => {
+    mockRequest.headers = { authorization: "Bearer " };
 
-    authMiddleware(mockRequest as Request, mockResponse as Response, mockNext);
+    await authMiddleware(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext
+    );
 
-    expect(statusMock).toHaveBeenCalledWith(500);
-    expect(sendMock).toHaveBeenCalledWith("Internal Server Error");
+    expect(statusMock).toHaveBeenCalledWith(401);
+    expect(jsonMock).toHaveBeenCalledWith({ message: "Unauthorized" });
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  it("should return 401 if token verification fails", () => {
-    (mockRequest.header as jest.Mock).mockReturnValue("Bearer invalidtoken");
-    (jwt.verify as jest.Mock).mockImplementation((token, secret, callback) => {
-      callback(new Error("Invalid token"), null);
+  it("should return 401 if token verification fails", async () => {
+    mockRequest.headers = { authorization: "Bearer invalidtoken" };
+    (TokenService.verifyToken as jest.Mock).mockRejectedValue(
+      new Error("Invalid token")
+    );
+
+    await authMiddleware(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(401);
+    expect(jsonMock).toHaveBeenCalledWith({ message: "Unauthorized" });
+    expect(mockNext).not.toHaveBeenCalled();
+  });
+
+  it("should return 401 if token is not an access token", async () => {
+    mockRequest.headers = { authorization: "Bearer refreshtoken" };
+    (TokenService.verifyToken as jest.Mock).mockResolvedValue({
+      _id: "user123",
+      tokenType: "refresh",
+    });
+    (TokenService.assertTokenType as jest.Mock).mockImplementation(() => {
+      throw new Error("Invalid token type");
     });
 
-    authMiddleware(mockRequest as Request, mockResponse as Response, mockNext);
+    await authMiddleware(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext
+    );
 
     expect(statusMock).toHaveBeenCalledWith(401);
-    expect(sendMock).toHaveBeenCalledWith("Unauthorized");
+    expect(jsonMock).toHaveBeenCalledWith({ message: "Unauthorized" });
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  it("should call next and set userId in params if token is valid", () => {
-    (mockRequest.header as jest.Mock).mockReturnValue("Bearer validtoken");
-    (jwt.verify as jest.Mock).mockImplementation((token, secret, callback) => {
-      callback(null, { _id: "user123" });
+  it("should call next and set userId in params if token is valid", async () => {
+    mockRequest.headers = { authorization: "Bearer validtoken" };
+    (TokenService.verifyToken as jest.Mock).mockResolvedValue({
+      _id: "user123",
+      tokenType: "access",
     });
+    (TokenService.assertTokenType as jest.Mock).mockImplementation(
+      () => undefined
+    );
+    (TokenService.extractUserId as jest.Mock).mockReturnValue("user123");
 
-    authMiddleware(mockRequest as Request, mockResponse as Response, mockNext);
+    await authMiddleware(
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext
+    );
 
     expect(mockRequest.params?.userId).toBe("user123");
+    expect((mockRequest as any).userId).toBe("user123");
     expect(mockNext).toHaveBeenCalled();
     expect(statusMock).not.toHaveBeenCalled();
   });

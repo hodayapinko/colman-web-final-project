@@ -5,12 +5,11 @@ import { LogoutOutlined, ArrowBackOutlined } from "@mui/icons-material";
 interface PageTopBarProps {
   title: string;
   subtitle?: string;
-  // Left side: back button OR icon (icon takes precedence when onBack is absent)
   onBack?: () => void;
   icon?: React.ReactNode;
   iconBg?: string;
-  // Right side: optional logout
   onLogout?: () => void;
+  profilePicture?: string;
 }
 
 const PageTopBar: React.FC<PageTopBarProps> = ({
@@ -20,6 +19,7 @@ const PageTopBar: React.FC<PageTopBarProps> = ({
   icon,
   iconBg = "#EDE9FF",
   onLogout,
+  profilePicture,
 }) => (
   <Box
     sx={{
@@ -57,7 +57,12 @@ const PageTopBar: React.FC<PageTopBarProps> = ({
     <Box sx={{ textAlign: "center" }}>
       <Typography
         variant="h6"
-        sx={{ fontWeight: 700, color: "#1A1A2E", fontSize: "1rem", lineHeight: 1.2 }}
+        sx={{
+          fontWeight: 700,
+          color: "#1A1A2E",
+          fontSize: "1rem",
+          lineHeight: 1.2,
+        }}
       >
         {title}
       </Typography>
@@ -70,11 +75,29 @@ const PageTopBar: React.FC<PageTopBarProps> = ({
 
     {/* Right side */}
     {onLogout ? (
-      <IconButton onClick={onLogout} sx={{ color: "#9E9EB0" }} size="small">
-        <LogoutOutlined fontSize="small" />
-      </IconButton>
+      profilePicture ? (
+        <IconButton onClick={onLogout} sx={{ p: 0 }} size="small">
+          <img
+            src={profilePicture}
+            alt="Profile"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        </IconButton>
+      ) : (
+        <IconButton onClick={onLogout} sx={{ color: "#9E9EB0" }} size="small">
+          <LogoutOutlined fontSize="small" />
+        </IconButton>
+      )
     ) : (
-      <Box sx={{ width: 34 }} /> /* spacer to keep title centered */
+      <Box sx={{ width: 34 }} />
     )}
   </Box>
 );

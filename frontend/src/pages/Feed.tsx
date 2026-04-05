@@ -13,35 +13,55 @@ import ReviewCard from "../components/ReviewCard";
 const Feed: React.FC = () => {
   const [posts, setPosts] = useState<IPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
+    {}
+  );
   const { logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    postService.getAll().then(setPosts).finally(() => setIsLoading(false));
+    postService
+      .getAll()
+      .then(setPosts)
+      .finally(() => setIsLoading(false));
   }, []);
 
   useEffect(() => {
     if (posts.length === 0) return;
     Promise.all(
       posts.map((p) =>
-        commentService.getByPost(p._id)
+        commentService
+          .getByPost(p._id)
           .then((c) => ({ id: p._id, count: c.length }))
           .catch(() => ({ id: p._id, count: 0 }))
       )
     ).then((results) => {
       const counts: Record<string, number> = {};
-      results.forEach(({ id, count }) => { counts[id] = count; });
+      results.forEach(({ id, count }) => {
+        counts[id] = count;
+      });
       setCommentCounts(counts);
     });
   }, [posts]);
 
   const handleLogout = async () => {
-    try { await logout(); } finally { navigate("/login"); }
+    try {
+      await logout();
+    } finally {
+      navigate("/login");
+    }
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#F8F9FA", display: "flex", flexDirection: "column", pb: "80px" }}>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        bgcolor: "#F8F9FA",
+        display: "flex",
+        flexDirection: "column",
+        pb: "80px",
+      }}
+    >
       <PageTopBar
         icon={<LanguageOutlined sx={{ color: "#fff", fontSize: 20 }} />}
         iconBg="#6344F5"
@@ -59,10 +79,34 @@ const Feed: React.FC = () => {
           <EmptyStateView
             illustration={
               <Box sx={{ position: "relative", width: 160, height: 160 }}>
-                <Box sx={{ width: 160, height: 160, borderRadius: "50%", bgcolor: "#EDE9FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Box
+                  sx={{
+                    width: 160,
+                    height: 160,
+                    borderRadius: "50%",
+                    bgcolor: "#EDE9FF",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
                   <LanguageOutlined sx={{ fontSize: 72, color: "#6344F5" }} />
                 </Box>
-                <Box sx={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: "50%", bgcolor: "#F5A623", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(245,166,35,0.5)" }}>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 10,
+                    right: 10,
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    bgcolor: "#F5A623",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 2px 6px rgba(245,166,35,0.5)",
+                  }}
+                >
                   <StarOutlined sx={{ fontSize: 16, color: "#fff" }} />
                 </Box>
               </Box>
@@ -86,7 +130,13 @@ const Feed: React.FC = () => {
 
       <Fab
         onClick={() => navigate("/create")}
-        sx={{ position: "fixed", bottom: 84, right: 20, bgcolor: "#6344F5", "&:hover": { bgcolor: "#512DC8" } }}
+        sx={{
+          position: "fixed",
+          bottom: 84,
+          right: 20,
+          bgcolor: "#6344F5",
+          "&:hover": { bgcolor: "#512DC8" },
+        }}
       >
         <Add sx={{ color: "#fff" }} />
       </Fab>
