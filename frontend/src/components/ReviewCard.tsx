@@ -125,7 +125,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
             >
               <ChatBubbleOutline sx={{ fontSize: 16, color: "#6344F5" }} />
               <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#6344F5" }}>
-                {commentCount ?? 0} {(commentCount ?? 0) === 1 ? "Comment" : "Comments"}
+                {commentCount ?? 0}
               </Typography>
             </Box>
             <Box
@@ -159,7 +159,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
               ? <Favorite sx={{ fontSize: 16, color: "#d32f2f" }} />
               : <FavoriteBorder sx={{ fontSize: 16, color: "#9E9EB0" }} />}
             <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: isLiked ? "#d32f2f" : "#9E9EB0" }}>
-              {likes.length} {likes.length === 1 ? "Like" : "Likes"}
+              {likes.length}
             </Typography>
           </Box>
         )}
@@ -178,7 +178,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
               >
                 <ChatBubbleOutline sx={{ fontSize: 16, color: "#6344F5" }} />
                 <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#6344F5" }}>
-                  {commentCount ?? 0} {(commentCount ?? 0) === 1 ? "Comment" : "Comments"}
+                  {commentCount ?? 0}
                 </Typography>
               </Box>
               <Box
@@ -193,7 +193,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
                   ? <Favorite sx={{ fontSize: 16, color: "#d32f2f" }} />
                   : <FavoriteBorder sx={{ fontSize: 16, color: "#9E9EB0" }} />}
                 <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: isLiked ? "#d32f2f" : "#9E9EB0" }}>
-                  {likes.length} {likes.length === 1 ? "Like" : "Likes"}
+                  {likes.length}
                 </Typography>
               </Box>
             </Box>
@@ -208,7 +208,6 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
                 }}
               >
                 <EditOutlined sx={{ fontSize: 16, color: "#555" }} />
-                <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#555" }}>Edit</Typography>
               </Box>
               <Box
                 onClick={() => onDelete?.(post._id)}
@@ -219,7 +218,6 @@ const ReviewCard: React.FC<ReviewCardProps> = ({ post, mode = "detail", commentC
                 }}
               >
                 <DeleteOutlined sx={{ fontSize: 16, color: "#d32f2f" }} />
-                <Typography sx={{ fontSize: "0.82rem", fontWeight: 600, color: "#d32f2f" }}>Delete</Typography>
               </Box>
             </Box>
           </Box>
