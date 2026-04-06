@@ -56,7 +56,7 @@ const Profile: React.FC = () => {
           iconBg="#6344F5"
           title="My Profile"
           subtitle="Manage your account"
-          onLogout={handleLogout}
+          onLogout={isEditing ? undefined : handleLogout}
           onBack={isEditing ? () => setIsEditing(false) : undefined}
         />
 
