@@ -3,6 +3,7 @@ import { HomeOutlined, StarOutlined } from "@mui/icons-material";
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useLogout } from "../utils/authUtils";
 import { postService, type IPost } from "../services/postService";
 import { commentService } from "../services/commentService";
 import PageTopBar from "../components/PageTopBar";
@@ -11,8 +12,9 @@ import AppBottomNav from "../components/AppBottomNav";
 import ReviewCard from "../components/ReviewCard";
 
 const Reviews: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const handleLogout = useLogout();
   const [posts, setPosts] = useState<IPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
@@ -48,14 +50,6 @@ const Reviews: React.FC = () => {
   const handleDelete = async (id: string) => {
     await postService.delete(id);
     setPosts((prev) => prev.filter((p) => p._id !== id));
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } finally {
-      navigate("/login");
-    }
   };
 
   return (

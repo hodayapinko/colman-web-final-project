@@ -15,6 +15,7 @@ interface User {
   _id: string;
   username?: string;
   email?: string;
+  bio?: string;
   profilePicture?: string;
 }
 
@@ -25,6 +26,7 @@ interface AuthContextType {
   register: (data: IRegisterData) => Promise<void>;
   googleLogin: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
   isAuthenticated: boolean;
 }
 
@@ -90,6 +92,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         register,
         googleLogin,
         logout,
+        setUser,
         isAuthenticated: !!user,
       }}
     >

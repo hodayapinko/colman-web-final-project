@@ -8,10 +8,6 @@ const GoogleLoginButton: React.FC = () => {
   const { googleLogin } = useAuth();
   const navigate = useNavigate();
 
-  if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-    return null;
-  }
-
   const handleSuccessLogin = async (credentialResponse: CredentialResponse) => {
     if (!credentialResponse.credential) {
       setError("Google sign-in failed");

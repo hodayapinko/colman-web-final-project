@@ -1,17 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLogout } from "../utils/authUtils";
 
 const Navbar: React.FC = () => {
-  const { user, logout, isAuthenticated } = useAuth();
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch {
-      // still clear local state on failure
-    }
-  };
+  const { user, isAuthenticated } = useAuth();
+  const handleLogout = useLogout();
 
   return (
     <nav className="navbar">

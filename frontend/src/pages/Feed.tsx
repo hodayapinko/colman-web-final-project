@@ -1,8 +1,8 @@
 import { Box, Fab, CircularProgress } from "@mui/material";
 import { LanguageOutlined, StarOutlined, Add } from "@mui/icons-material";
 import React, { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useLogout } from "../utils/authUtils";
 import { postService, type IPost } from "../services/postService";
 import { commentService } from "../services/commentService";
 import PageTopBar from "../components/PageTopBar";
@@ -16,7 +16,7 @@ const Feed: React.FC = () => {
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
     {}
   );
-  const { logout } = useAuth();
+  const handleLogout = useLogout();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,14 +43,6 @@ const Feed: React.FC = () => {
       setCommentCounts(counts);
     });
   }, [posts]);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } finally {
-      navigate("/login");
-    }
-  };
 
   return (
     <Box

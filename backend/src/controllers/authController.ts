@@ -172,9 +172,6 @@ export class AuthController {
         if (!user.googleId) {
           user.googleId = googleUser.googleId;
         }
-        if (googleUser.picture && user.profilePicture !== googleUser.picture) {
-          user.profilePicture = googleUser.picture;
-        }
         await user.save();
       }
 
