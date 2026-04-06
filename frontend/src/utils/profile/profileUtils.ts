@@ -6,7 +6,6 @@ import { type IFormData, type IComparableProfileData, INITIAL_FORM, type IProfil
 function getProfileComparableData(data: IFormData): IComparableProfileData {
   return {
     username: data.username,
-    bio: data.bio,
     profilePicture: data.profilePicture ?? "",
   };
 }
@@ -42,7 +41,6 @@ export function useProfileForm() {
 
         const nextFormData: IFormData = {
           username: data.username ?? "",
-          bio: data.bio ?? "",
           profilePicture: data.profilePicture ?? "",
           imageFile: null,
         };
@@ -60,7 +58,7 @@ export function useProfileForm() {
   }, [user]);
 
   const updateField =
-    <K extends keyof Pick<IFormData, "username" | "bio">>(key: K) =>
+    <K extends keyof Pick<IFormData, "username">>(key: K) =>
     (value: IFormData[K]) => {
       setFormData((prev) => ({
         ...prev,
@@ -103,7 +101,6 @@ export function useProfileForm() {
 
       const updated = await userService.update(user._id, {
         username: formData.username,
-        bio: formData.bio,
         profilePicture,
       });
 
@@ -118,7 +115,6 @@ export function useProfileForm() {
 
       const nextFormData: IFormData = {
         username: updated.username ?? "",
-        bio: updated.bio ?? "",
         profilePicture: updated.profilePicture ?? "",
         imageFile: null,
       };
@@ -139,16 +135,6 @@ export function useProfileForm() {
       value: formData.username,
       type: "text",
       onChange: updateField("username"),
-    },
-    {
-      key: "bio",
-      label: "Bio",
-      value: formData.bio,
-      type: "text",
-      multiline: true,
-      minRows: 3,
-      maxLength: 500,
-      onChange: updateField("bio"),
     },
   ];
 

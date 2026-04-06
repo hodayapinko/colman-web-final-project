@@ -5,7 +5,6 @@ export interface IUserProfile {
   _id: string;
   username: string;
   email: string;
-  bio?: string;
   profilePicture?: string;
 }
 

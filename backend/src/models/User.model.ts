@@ -31,11 +31,6 @@ const userSchema = new Schema<IUser>(
       min: [0, "Age cannot be negative"],
       max: [150, "Age seems invalid"],
     },
-    bio: {
-      type: String,
-      trim: true,
-      maxlength: [500, "Bio cannot exceed 500 characters"],
-    },
     profilePicture: {
       type: String,
       trim: true,

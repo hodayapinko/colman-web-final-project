@@ -1,56 +1,25 @@
-import { Box, CircularProgress } from "@mui/material";
-import { HomeOutlined, StarOutlined } from "@mui/icons-material";
-import React, { useEffect, useState } from "react";
+import { Box } from "@mui/material";
+import { HomeOutlined } from "@mui/icons-material";
+import React from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useLogout } from "../utils/authUtils";
-import { postService, type IPost } from "../services/postService";
-import { commentService } from "../services/commentService";
+import { useUserPosts } from "../utils/useUserPosts";
+import { useCommentCounts } from "../utils/useCommentCounts";
+import { useNoReviewsEmptyState } from "../utils/emptyStateConfig";
 import PageTopBar from "../components/PageTopBar";
-import EmptyStateView from "../components/EmptyStateView";
+import ReviewList from "../components/ReviewList";
 import AppBottomNav from "../components/AppBottomNav";
-import ReviewCard from "../components/ReviewCard";
 
 const Reviews: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const handleLogout = useLogout();
-  const [posts, setPosts] = useState<IPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
-    {}
+  const { posts, isLoading, deletePost } = useUserPosts(user?._id);
+  const commentCounts = useCommentCounts(posts);
+  const noReviewsEmptyState = useNoReviewsEmptyState(
+    "Start your journey by sharing your first hotel experience. Your reviews help others make better travel decisions!"
   );
-
-  useEffect(() => {
-    if (!user) return;
-    postService
-      .getByUser(user._id)
-      .then(setPosts)
-      .finally(() => setIsLoading(false));
-  }, [user]);
-
-  useEffect(() => {
-    if (posts.length === 0) return;
-    Promise.all(
-      posts.map((p) =>
-        commentService
-          .getByPost(p._id)
-          .then((c) => ({ id: p._id, count: c.length }))
-          .catch(() => ({ id: p._id, count: 0 }))
-      )
-    ).then((results) => {
-      const counts: Record<string, number> = {};
-      results.forEach(({ id, count }) => {
-        counts[id] = count;
-      });
-      setCommentCounts(counts);
-    });
-  }, [posts]);
-
-  const handleDelete = async (id: string) => {
-    await postService.delete(id);
-    setPosts((prev) => prev.filter((p) => p._id !== id));
-  };
 
   return (
     <Box
@@ -70,44 +39,15 @@ const Reviews: React.FC = () => {
         onLogout={handleLogout}
       />
       <Box sx={{ flex: 1, px: 2, pt: 2 }}>
-        {isLoading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-            <CircularProgress sx={{ color: "#6344F5" }} />
-          </Box>
-        ) : posts.length === 0 ? (
-          <EmptyStateView
-            illustration={
-              <Box
-                sx={{
-                  width: 160,
-                  height: 160,
-                  borderRadius: "50%",
-                  bgcolor: "#EDE9FF",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <StarOutlined sx={{ fontSize: 72, color: "#6344F5" }} />
-              </Box>
-            }
-            heading="No Reviews Yet"
-            description="Start your journey by sharing your first hotel experience. Your reviews help others make better travel decisions!"
-            ctaLabel="Add Your First Review"
-            onCtaClick={() => navigate("/create")}
-          />
-        ) : (
-          posts.map((post) => (
-            <ReviewCard
-              key={post._id}
-              post={post}
-              mode="mine"
-              commentCount={commentCounts[post._id] ?? 0}
-              onEdit={(id) => navigate(`/edit/${id}`)}
-              onDelete={handleDelete}
-            />
-          ))
-        )}
+        <ReviewList
+          posts={posts}
+          isLoading={isLoading}
+          commentCounts={commentCounts}
+          mode="mine"
+          emptyState={noReviewsEmptyState}
+          onEdit={(id) => navigate(`/edit/${id}`)}
+          onDelete={deletePost}
+        />
       </Box>
       <AppBottomNav activeIndex={0} />
     </Box>

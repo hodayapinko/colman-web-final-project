@@ -18,7 +18,6 @@ export interface IUser extends Document {
   password?: string;
   refreshTokens?: string[];
   age?: number;
-  bio?: string;
   profilePicture?: string;
   createdAt: Date;
   updatedAt: Date;

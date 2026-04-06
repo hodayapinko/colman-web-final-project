@@ -1,23 +1,22 @@
-import { Box, Fab, CircularProgress } from "@mui/material";
-import { LanguageOutlined, StarOutlined, Add } from "@mui/icons-material";
+import { Box, Fab } from "@mui/material";
+import { LanguageOutlined, Add } from "@mui/icons-material";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLogout } from "../utils/authUtils";
 import { postService, type IPost } from "../services/postService";
-import { commentService } from "../services/commentService";
+import { useCommentCounts } from "../utils/useCommentCounts";
+import { useFeedEmptyState } from "../utils/emptyStateConfig";
 import PageTopBar from "../components/PageTopBar";
-import EmptyStateView from "../components/EmptyStateView";
+import ReviewList from "../components/ReviewList";
 import AppBottomNav from "../components/AppBottomNav";
-import ReviewCard from "../components/ReviewCard";
 
 const Feed: React.FC = () => {
   const [posts, setPosts] = useState<IPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [commentCounts, setCommentCounts] = useState<Record<string, number>>(
-    {}
-  );
+  const commentCounts = useCommentCounts(posts);
   const handleLogout = useLogout();
   const navigate = useNavigate();
+  const feedEmptyState = useFeedEmptyState();
 
   useEffect(() => {
     postService
@@ -25,24 +24,6 @@ const Feed: React.FC = () => {
       .then(setPosts)
       .finally(() => setIsLoading(false));
   }, []);
-
-  useEffect(() => {
-    if (posts.length === 0) return;
-    Promise.all(
-      posts.map((p) =>
-        commentService
-          .getByPost(p._id)
-          .then((c) => ({ id: p._id, count: c.length }))
-          .catch(() => ({ id: p._id, count: 0 }))
-      )
-    ).then((results) => {
-      const counts: Record<string, number> = {};
-      results.forEach(({ id, count }) => {
-        counts[id] = count;
-      });
-      setCommentCounts(counts);
-    });
-  }, [posts]);
 
   return (
     <Box
@@ -63,61 +44,13 @@ const Feed: React.FC = () => {
       />
 
       <Box sx={{ flex: 1, px: 2, pt: 2 }}>
-        {isLoading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-            <CircularProgress sx={{ color: "#6344F5" }} />
-          </Box>
-        ) : posts.length === 0 ? (
-          <EmptyStateView
-            illustration={
-              <Box sx={{ position: "relative", width: 160, height: 160 }}>
-                <Box
-                  sx={{
-                    width: 160,
-                    height: 160,
-                    borderRadius: "50%",
-                    bgcolor: "#EDE9FF",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <LanguageOutlined sx={{ fontSize: 72, color: "#6344F5" }} />
-                </Box>
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 10,
-                    right: 10,
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    bgcolor: "#F5A623",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: "0 2px 6px rgba(245,166,35,0.5)",
-                  }}
-                >
-                  <StarOutlined sx={{ fontSize: 16, color: "#fff" }} />
-                </Box>
-              </Box>
-            }
-            heading="No Reviews in Feed"
-            description="The community feed is empty. Be the first to share a hotel review and inspire other travelers!"
-            ctaLabel="Share First Review"
-            onCtaClick={() => navigate("/create")}
-          />
-        ) : (
-          posts.map((post) => (
-            <ReviewCard
-              key={post._id}
-              post={post}
-              mode="feed"
-              commentCount={commentCounts[post._id] ?? 0}
-            />
-          ))
-        )}
+        <ReviewList
+          posts={posts}
+          isLoading={isLoading}
+          commentCounts={commentCounts}
+          mode="feed"
+          emptyState={feedEmptyState}
+        />
       </Box>
 
       <Fab

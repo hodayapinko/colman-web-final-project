@@ -11,7 +11,6 @@ export interface IProfileField {
 
 export interface IFormData {
   username: string;
-  bio: string;
   profilePicture: string;
   imageFile: File | null;
   imagePreviewUrl?: string;
@@ -19,13 +18,11 @@ export interface IFormData {
 
 export interface IComparableProfileData {
   username: string;
-  bio: string;
   profilePicture: string;
 }
 
 export const INITIAL_FORM: IFormData = {
   username: "",
-  bio: "",
   profilePicture: "",
   imageFile: null,
 };

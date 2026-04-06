@@ -62,7 +62,7 @@ export const createUser = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { username, email, password, age, bio, profilePicture } =
+    const { username, email, password, age, profilePicture } =
       req.body as Partial<IUser>;
 
     if (!username || !email) {
@@ -96,7 +96,6 @@ export const createUser = async (
       email,
       password,
       age,
-      bio,
       profilePicture,
     });
 
@@ -142,7 +141,7 @@ export const updateUser = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const { username, email, password, age, bio, profilePicture } =
+    const { username, email, password, age, profilePicture } =
       req.body as Partial<IUser>;
 
     const user = await User.findById(id);
@@ -157,7 +156,7 @@ export const updateUser = async (
 
     const updatedUser = await User.findByIdAndUpdate(
       id,
-      { username, email, password, age, bio, profilePicture },
+      { username, email, password, age, profilePicture },
       { new: true, runValidators: true }
     );
 

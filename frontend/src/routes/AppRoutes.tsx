@@ -5,7 +5,6 @@ import CommentsPage from "../pages/CommentsPage";
 import CreatePost from "../pages/CreatePost";
 import Login from "../pages/Login";
 import Register from "../pages/Register";
-import Reviews from "../pages/Reviews";
 import Profile from "../pages/Profile";
 import ProtectedRoute from "./ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
@@ -40,7 +39,7 @@ const AppRoutes: React.FC = () => (
       path="/"
       element={
         <ProtectedRoute>
-          <Reviews />
+          <Profile />
         </ProtectedRoute>
       }
     />
@@ -79,9 +78,7 @@ const AppRoutes: React.FC = () => (
     <Route
       path="/profile"
       element={
-        <ProtectedRoute>
-          <Profile />
-        </ProtectedRoute>
+        <Navigate to="/" replace />
       }
     />
   </Routes>
