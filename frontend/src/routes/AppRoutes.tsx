@@ -16,71 +16,28 @@ const GuestRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+const guestRoutes = [
+  { path: "/login", element: <Login /> },
+  { path: "/register", element: <Register /> },
+];
+
+const protectedRoutes = [
+  { path: "/", element: <Profile /> },
+  { path: "/feed", element: <Feed /> },
+  { path: "/comments/:postId", element: <CommentsPage /> },
+  { path: "/create", element: <CreatePost /> },
+  { path: "/edit/:postId", element: <CreatePost /> },
+];
+
 const AppRoutes: React.FC = () => (
   <Routes>
-    <Route
-      path="/login"
-      element={
-        <GuestRoute>
-          <Login />
-        </GuestRoute>
-      }
-    />
-    <Route
-      path="/register"
-      element={
-        <GuestRoute>
-          <Register />
-        </GuestRoute>
-      }
-    />
-
-    <Route
-      path="/"
-      element={
-        <ProtectedRoute>
-          <Profile />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/feed"
-      element={
-        <ProtectedRoute>
-          <Feed />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/comments/:postId"
-      element={
-        <ProtectedRoute>
-          <CommentsPage />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/create"
-      element={
-        <ProtectedRoute>
-          <CreatePost />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/edit/:postId"
-      element={
-        <ProtectedRoute>
-          <CreatePost />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/profile"
-      element={
-        <Navigate to="/" replace />
-      }
-    />
+    {guestRoutes.map(({ path, element }) => (
+      <Route key={path} path={path} element={<GuestRoute>{element}</GuestRoute>} />
+    ))}
+    {protectedRoutes.map(({ path, element }) => (
+      <Route key={path} path={path} element={<ProtectedRoute>{element}</ProtectedRoute>} />
+    ))}
+    <Route path="/profile" element={<Navigate to="/" replace />} />
   </Routes>
 );
 
