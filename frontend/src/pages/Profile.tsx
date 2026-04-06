@@ -8,7 +8,7 @@ import { useLogout } from "../utils/authUtils";
 import { useUserPosts } from "../utils/useUserPosts";
 import { useCommentCounts } from "../utils/useCommentCounts";
 import { useNoReviewsEmptyState } from "../utils/emptyStateConfig";
-import ProfileHeader from "../components/ProfileHeader";
+import ProfileHeader from "../components/profile/ProfileHeader";
 import PageTopBar from "../components/PageTopBar";
 import ReviewList from "../components/ReviewList";
 import AppBottomNav from "../components/AppBottomNav";

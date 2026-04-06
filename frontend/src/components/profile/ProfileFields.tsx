@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, Paper, TextField, Typography } from "@mui/material";
-import type { IProfileField } from "../utils/profile/types";
+import type { IProfileField } from "../../utils/profile/types";
 
 interface ProfileFieldsProps {
   fields: IProfileField[];

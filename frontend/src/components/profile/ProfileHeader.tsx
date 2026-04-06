@@ -1,5 +1,5 @@
 import React from "react";
-import type { IProfileField } from "../utils/profile/types";
+import type { IProfileField } from "../../utils/profile/types";
 import ProfileForm from "./ProfileForm";
 import ProfileSummary from "./ProfileSummary";
 
