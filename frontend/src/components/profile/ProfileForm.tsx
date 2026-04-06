@@ -1,8 +1,8 @@
 import React from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import type { IProfileField } from "../../utils/profile/types";
-import EditUserProfileHeader from "./EditUserProfileHeader";
 import ProfileFields from "./ProfileFields";
+import EditUserProfileHeader from "./EditUserProfileHeader";
 
 interface IProfileFormProps {
   fields: IProfileField[];
