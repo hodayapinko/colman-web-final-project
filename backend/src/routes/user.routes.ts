@@ -82,11 +82,6 @@ router.get("/", getAllUsers);
  *                 maximum: 150
  *                 description: User age
  *                 example: 28
- *               bio:
- *                 type: string
- *                 maxLength: 500
- *                 description: User biography (max 500 characters)
- *                 example: Software developer passionate about web technologies
  *               profilePicture:
  *                 type: string
  *                 format: uri
@@ -201,9 +196,6 @@ router.get("/:id", getUserById);
  *               age:
  *                 type: number
  *                 example: 30
- *               bio:
- *                 type: string
- *                 example: Updated bio information
  *               profilePicture:
  *                 type: string
  *                 format: uri

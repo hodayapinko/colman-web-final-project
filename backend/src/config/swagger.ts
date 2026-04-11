@@ -63,12 +63,6 @@ const options: swaggerJsdoc.Options = {
               description: "User age",
               example: 28,
             },
-            bio: {
-              type: "string",
-              maxLength: 500,
-              description: "User biography",
-              example: "Software developer passionate about web technologies",
-            },
             profilePicture: {
               type: "string",
               format: "uri",

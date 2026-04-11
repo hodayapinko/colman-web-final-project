@@ -88,7 +88,6 @@ Content-Type: application/json
   "email": "aamit@example.com",
   "password": "aamit123456",
   "age": 28,
-  "bio": "Software developer passionate about web technologies",
   "profilePicture": "https://example.com/profile/johndoe.jpg"
 }
 
@@ -113,7 +112,6 @@ Content-Type: application/json
   "email": "john.updated@example.com",
   "password": "newPassword123",
   "age": 30,
-  "bio": "Updated bio - Senior software developer",
   "profilePicture": "https://example.com/profile/updated.jpg"
 }
 
