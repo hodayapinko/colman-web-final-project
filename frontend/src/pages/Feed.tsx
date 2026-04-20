@@ -57,7 +57,7 @@ const Feed: React.FC = () => {
         ) {
           setIsFetchingMore(true);
           fetchPage(pageRef.current + 1).finally(() =>
-            setIsFetchingMore(false)
+            setIsFetchingMore(false),
           );
         }
       },
