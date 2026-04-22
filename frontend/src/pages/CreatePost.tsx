@@ -8,6 +8,7 @@ import {
   Paper,
   Rating,
   CircularProgress,
+  Tooltip,
 } from "@mui/material";
 import {
   ArrowBackOutlined,
@@ -267,10 +268,12 @@ const CreatePost: React.FC = () => {
                 letterSpacing: 0.5,
               }}
             >
-              Hotel Name{" "}
-              <Box component="span" sx={{ color: "#d32f2f" }}>
-                *
-              </Box>
+              <Tooltip title="Must be at least 3 characters" placement="top" arrow>
+                <span>
+                  Hotel Name{" "}
+                  <Box component="span" sx={{ color: "#d32f2f" }}>*</Box>
+                </span>
+              </Tooltip>
             </Typography>
             <TextField
               fullWidth
@@ -445,7 +448,12 @@ const CreatePost: React.FC = () => {
               letterSpacing: 0.5,
             }}
           >
-            Description
+            <Tooltip title="Must be at least 3 characters" placement="top" arrow>
+              <span>
+                Description{" "}
+                <Typography component="span" sx={{ color: "#E53935", ml: 0.3 }}>*</Typography>
+              </span>
+            </Tooltip>
           </Typography>
           <TextField
             fullWidth

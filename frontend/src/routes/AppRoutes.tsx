@@ -6,6 +6,7 @@ import CreatePost from "../pages/CreatePost";
 import Login from "../pages/Login";
 import Register from "../pages/Register";
 import Profile from "../pages/Profile";
+import Reviews from "../pages/Reviews";
 import ProtectedRoute from "./ProtectedRoute";
 import { useAuth } from "../context/AuthContext";
 
@@ -22,7 +23,8 @@ const guestRoutes = [
 ];
 
 const protectedRoutes = [
-  { path: "/", element: <Profile /> },
+  { path: "/", element: <Reviews /> },
+  { path: "/profile", element: <Profile /> },
   { path: "/feed", element: <Feed /> },
   { path: "/comments/:postId", element: <CommentsPage /> },
   { path: "/create", element: <CreatePost /> },
@@ -37,7 +39,7 @@ const AppRoutes: React.FC = () => (
     {protectedRoutes.map(({ path, element }) => (
       <Route key={path} path={path} element={<ProtectedRoute>{element}</ProtectedRoute>} />
     ))}
-    <Route path="/profile" element={<Navigate to="/" replace />} />
+    <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>
 );
 

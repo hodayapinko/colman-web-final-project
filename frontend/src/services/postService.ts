@@ -28,10 +28,21 @@ export interface ICreatePostData {
   rating?: number;
 }
 
+export interface IPaginatedPosts {
+  data: IPost[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
+}
+
 export const postService = {
-  getAll: async (): Promise<IPost[]> => {
-    const res = await api.get("/posts");
-    return res.data.data;
+  getAll: async (page = 1, limit = 10): Promise<IPaginatedPosts> => {
+    const res = await api.get(`/posts?page=${page}&limit=${limit}`);
+    return { data: res.data.data, pagination: res.data.pagination };
   },
 
   getById: async (id: string): Promise<IPost> => {
@@ -70,7 +81,7 @@ export const postService = {
 
   toggleLike: async (
     id: string,
-    userId: string
+    userId: string,
   ): Promise<{ likes: string[]; liked: boolean }> => {
     const res = await api.put(`/posts/${id}/like`, { userId });
     return res.data.data;

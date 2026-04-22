@@ -8,17 +8,36 @@ import { findUserById } from "./shared/functions";
 
 export const getAllPosts = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const posts = await Post.find()
-      .populate("user", "username profilePicture")
-      .sort({ createdAt: -1 });
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(req.query.limit as string) || 10),
+    );
+    const skip = (page - 1) * limit;
+
+    const [posts, total] = await Promise.all([
+      Post.find()
+        .populate("user", "username profilePicture")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Post.countDocuments(),
+    ]);
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: "Posts retrieved successfully",
       data: posts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
     });
   } catch (error: any) {
     console.error("Error retrieving posts:", error);
@@ -32,7 +51,7 @@ export const getAllPosts = async (
 
 export const getPostsByUserId = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     // userId is guaranteed to exist because the router checks for it before calling this function
@@ -65,7 +84,7 @@ export const getPostsByUserId = async (
 
 export const getPostById = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -97,7 +116,7 @@ export const getPostById = async (
 
 export const createPost = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { title, content, userId, image, location, rating } = req.body as {
@@ -173,7 +192,7 @@ export const createPost = async (
 
 export const updatePost = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -242,7 +261,7 @@ export const updatePost = async (
         // Image URLs look like http://host:port/public/filename.ext — extract the relative path
         const oldRelative = existingPost.image.replace(
           /^https?:\/\/[^/]+\//,
-          ""
+          "",
         );
         const oldAbsolute = path.join(process.cwd(), oldRelative);
         if (fs.existsSync(oldAbsolute)) {
@@ -257,7 +276,7 @@ export const updatePost = async (
         ...(Object.keys(updateData).length > 0 && { $set: updateData }),
         ...(image === "" && { $unset: { image: 1 } }),
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedPost) {
@@ -294,7 +313,7 @@ export const updatePost = async (
 
 export const toggleLike = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { id } = req.params;
@@ -332,19 +351,17 @@ export const toggleLike = async (
       data: { likes: post.likes, liked: !alreadyLiked },
     });
   } catch (error: any) {
-    res
-      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-      .json({
-        success: false,
-        message: "Internal server error",
-        error: error.message,
-      });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 
 export const deletePost = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { id } = req.params;
