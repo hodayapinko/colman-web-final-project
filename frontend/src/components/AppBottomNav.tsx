@@ -4,10 +4,11 @@ import {
   HomeOutlined,
   LanguageOutlined,
   AddCircleOutline,
+  PersonOutlined,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
-const NAV_ROUTES = ["/", "/feed", "/create"];
+const NAV_ROUTES = ["/", "/feed", "/create", "/profile"];
 
 interface AppBottomNavProps {
   activeIndex: number;
@@ -62,6 +63,11 @@ const AppBottomNav: React.FC<AppBottomNavProps> = ({ activeIndex }) => {
           label="Add"
           icon={<AddCircleOutline />}
           sx={navItemSx(2)}
+        />
+        <BottomNavigationAction
+          label="Profile"
+          icon={<PersonOutlined />}
+          sx={navItemSx(3)}
         />
       </BottomNavigation>
     </Paper>
