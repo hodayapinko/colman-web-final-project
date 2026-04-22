@@ -10,13 +10,14 @@ import PageTopBar from "../components/PageTopBar";
 import ReviewList from "../components/ReviewList";
 import AppBottomNav from "../components/AppBottomNav";
 
-const PAGE_SIZE = 1;
+const PAGE_SIZE = 5;
 
 const Feed: React.FC = () => {
   const [posts, setPosts] = useState<IPost[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const pageRef = useRef(1);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const isFetchingRef = useRef(false);
@@ -46,10 +47,14 @@ const Feed: React.FC = () => {
 
   useEffect(() => {
     setIsLoading(true);
-    fetchPage(1).finally(() => setIsLoading(false));
+    fetchPage(1).finally(() => {
+      setIsLoading(false);
+      setInitialLoadDone(true);
+    });
   }, [fetchPage]);
 
   useEffect(() => {
+    if (!initialLoadDone) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
     const observer = new IntersectionObserver(
@@ -69,7 +74,7 @@ const Feed: React.FC = () => {
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [fetchPage]);
+  }, [fetchPage, initialLoadDone]);
 
   return (
     <Box
