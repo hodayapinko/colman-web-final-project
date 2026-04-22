@@ -10,7 +10,7 @@ import PageTopBar from "../components/PageTopBar";
 import ReviewList from "../components/ReviewList";
 import AppBottomNav from "../components/AppBottomNav";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 1;
 
 const Feed: React.FC = () => {
   const [posts, setPosts] = useState<IPost[]>([]);
@@ -31,7 +31,11 @@ const Feed: React.FC = () => {
     isFetchingRef.current = true;
     try {
       const { data, pagination } = await postService.getAll(pageNum, PAGE_SIZE);
-      setPosts((prev) => (pageNum === 1 ? data : [...prev, ...data]));
+      setPosts((prev) => {
+        if (pageNum === 1) return data;
+        const existingIds = new Set(prev.map((p) => p._id));
+        return [...prev, ...data.filter((p) => !existingIds.has(p._id))];
+      });
       setTotalCount(pagination.total);
       hasMoreRef.current = pagination.hasMore;
       pageRef.current = pageNum;
