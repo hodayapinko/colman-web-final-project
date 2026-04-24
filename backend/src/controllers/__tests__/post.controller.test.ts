@@ -5,14 +5,19 @@ import {
   getPostById,
   createPost,
   updatePost,
+  deletePost,
+  toggleLike,
 } from "../post.controller";
 import Post from "../../models/Post.model";
 import { HTTP_STATUS } from "../../constants/constants";
 import { findUserById } from "../shared/functions";
+import mongoose from "mongoose";
+import fs from "fs";
 
 // Mock the Post model
 jest.mock("../../models/Post.model");
 jest.mock("../shared/functions");
+jest.mock("fs");
 
 describe("Post Controller", () => {
   let mockRequest: Partial<Request>;
@@ -48,7 +53,11 @@ describe("Post Controller", () => {
         },
       ];
 
-      (Post.find as jest.Mock).mockResolvedValue(mockPosts);
+      (Post.find as jest.Mock).mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          sort: jest.fn().mockResolvedValue(mockPosts),
+        }),
+      });
 
       await getAllPosts(mockRequest as Request, mockResponse as Response);
 
@@ -62,7 +71,11 @@ describe("Post Controller", () => {
     });
 
     it("should handle database errors", async () => {
-      (Post.find as jest.Mock).mockRejectedValue(new Error("DB error"));
+      (Post.find as jest.Mock).mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          sort: jest.fn().mockRejectedValue(new Error("DB error")),
+        }),
+      });
 
       await getAllPosts(mockRequest as Request, mockResponse as Response);
 
@@ -99,7 +112,8 @@ describe("Post Controller", () => {
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
       expect(jsonMock).toHaveBeenCalledWith({
         success: true,
-        message: "Posts by user 507f1f77bcf86cd799439012 retrieved successfully",
+        message:
+          "Posts by user 507f1f77bcf86cd799439012 retrieved successfully",
         data: mockPosts,
       });
     });
@@ -122,7 +136,9 @@ describe("Post Controller", () => {
 
       await getPostsByUserId(mockRequest as Request, mockResponse as Response);
 
-      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      expect(statusMock).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         message: "Internal server error",
@@ -173,7 +189,9 @@ describe("Post Controller", () => {
 
       await getPostById(mockRequest as Request, mockResponse as Response);
 
-      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      expect(statusMock).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         message: "Internal server error",
@@ -200,7 +218,9 @@ describe("Post Controller", () => {
       };
 
       mockRequest.body = mockPostData;
-      (findUserById as jest.Mock).mockResolvedValue({ _id: mockPostData.userId });
+      (findUserById as jest.Mock).mockResolvedValue({
+        _id: mockPostData.userId,
+      });
       (Post as any).mockImplementation(() => ({
         save: jest.fn().mockResolvedValue(mockSavedPost),
       }));
@@ -227,7 +247,8 @@ describe("Post Controller", () => {
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
-        message: "Missing required fields: title, content, and userId are required",
+        message:
+          "Missing required fields: title, content, and userId are required",
       });
     });
 
@@ -272,7 +293,9 @@ describe("Post Controller", () => {
         userId: "507f1f77bcf86cd799439012",
       };
 
-      (findUserById as jest.Mock).mockResolvedValue({ _id: "507f1f77bcf86cd799439012" });
+      (findUserById as jest.Mock).mockResolvedValue({
+        _id: "507f1f77bcf86cd799439012",
+      });
 
       const validationError = {
         name: "ValidationError",
@@ -302,14 +325,18 @@ describe("Post Controller", () => {
         userId: "507f1f77bcf86cd799439012",
       };
 
-      (findUserById as jest.Mock).mockResolvedValue({ _id: "507f1f77bcf86cd799439012" });
+      (findUserById as jest.Mock).mockResolvedValue({
+        _id: "507f1f77bcf86cd799439012",
+      });
       (Post as any).mockImplementation(() => ({
         save: jest.fn().mockRejectedValue(new Error("DB error")),
       }));
 
       await createPost(mockRequest as Request, mockResponse as Response);
 
-      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      expect(statusMock).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
         message: "Internal server error",
@@ -339,7 +366,7 @@ describe("Post Controller", () => {
 
       expect(Post.findByIdAndUpdate).toHaveBeenCalledWith(
         "507f1f77bcf86cd799439011",
-        { title: "Updated Title", content: "Updated content" },
+        { $set: { title: "Updated Title", content: "Updated content" } },
         { new: true, runValidators: true }
       );
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
@@ -374,8 +401,7 @@ describe("Post Controller", () => {
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
       expect(jsonMock).toHaveBeenCalledWith({
         success: false,
-        message:
-          "At least one field (title, content, or userId) must be provided for update",
+        message: "At least one field must be provided for update",
       });
     });
 
@@ -390,7 +416,9 @@ describe("Post Controller", () => {
       mockRequest.params = { id: "507f1f77bcf86cd799439011" };
       mockRequest.body = { userId: "507f1f77bcf86cd799439015" };
 
-      (findUserById as jest.Mock).mockResolvedValue({ _id: "507f1f77bcf86cd799439015" });
+      (findUserById as jest.Mock).mockResolvedValue({
+        _id: "507f1f77bcf86cd799439015",
+      });
       (Post.findByIdAndUpdate as jest.Mock).mockResolvedValue(mockUpdatedPost);
 
       await updatePost(mockRequest as Request, mockResponse as Response);
@@ -454,9 +482,195 @@ describe("Post Controller", () => {
       mockRequest.params = { id: "507f1f77bcf86cd799439011" };
       mockRequest.body = { title: "Updated Title" };
 
-      (Post.findByIdAndUpdate as jest.Mock).mockRejectedValue(new Error("DB error"));
+      (Post.findByIdAndUpdate as jest.Mock).mockRejectedValue(
+        new Error("DB error")
+      );
 
       await updatePost(mockRequest as Request, mockResponse as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(
+        HTTP_STATUS.INTERNAL_SERVER_ERROR
+      );
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: false,
+        message: "Internal server error",
+        error: "DB error",
+      });
+    });
+  });
+
+  describe("deletePost", () => {
+    it("should delete post successfully without image", async () => {
+      const postId = "507f1f77bcf86cd799439011";
+      const deletedPost = {
+        _id: postId,
+        title: "Test Post",
+        content: "Test content",
+        user: "507f1f77bcf86cd799439012",
+      };
+      mockRequest.params = { id: postId };
+      (Post.findByIdAndDelete as jest.Mock).mockResolvedValue(deletedPost);
+
+      await deletePost(mockRequest as Request, mockResponse as Response);
+
+      expect(Post.findByIdAndDelete).toHaveBeenCalledWith(postId);
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: true,
+        message: "Post deleted successfully",
+        data: deletedPost,
+      });
+    });
+
+    it("should delete post and remove image file when it exists on disk", async () => {
+      const postId = "507f1f77bcf86cd799439011";
+      const deletedPost = {
+        _id: postId,
+        title: "Test Post",
+        content: "Test content",
+        image: "http://localhost:3000/public/test-image.jpg",
+      };
+      mockRequest.params = { id: postId };
+      (Post.findByIdAndDelete as jest.Mock).mockResolvedValue(deletedPost);
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.unlinkSync as jest.Mock).mockImplementation(() => {});
+
+      await deletePost(mockRequest as Request, mockResponse as Response);
+
+      expect(fs.existsSync).toHaveBeenCalled();
+      expect(fs.unlinkSync).toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: true,
+        message: "Post deleted successfully",
+        data: deletedPost,
+      });
+    });
+
+    it("should return 404 if post not found", async () => {
+      mockRequest.params = { id: "507f1f77bcf86cd799439011" };
+      (Post.findByIdAndDelete as jest.Mock).mockResolvedValue(null);
+
+      await deletePost(mockRequest as Request, mockResponse as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: false,
+        message: "Post not found",
+      });
+    });
+
+    it("should handle database errors", async () => {
+      mockRequest.params = { id: "507f1f77bcf86cd799439011" };
+      (Post.findByIdAndDelete as jest.Mock).mockRejectedValue(
+        new Error("DB error")
+      );
+
+      await deletePost(mockRequest as Request, mockResponse as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: false,
+        message: "Internal server error",
+        error: "DB error",
+      });
+    });
+  });
+
+  describe("toggleLike", () => {
+    const validUserId = "507f1f77bcf86cd799439012";
+    const postId = "507f1f77bcf86cd799439011";
+
+    it("should add a like successfully when post has no likes", async () => {
+      const mockPost = {
+        _id: postId,
+        likes: [] as mongoose.Types.ObjectId[],
+        save: jest.fn().mockResolvedValue(true),
+      };
+      mockRequest.params = { id: postId };
+      mockRequest.body = { userId: validUserId };
+      (Post.findById as jest.Mock).mockResolvedValue(mockPost);
+
+      await toggleLike(mockRequest as Request, mockResponse as Response);
+
+      expect(Post.findById).toHaveBeenCalledWith(postId);
+      expect(mockPost.save).toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: true,
+        message: "Post liked",
+        data: { likes: expect.any(Array), liked: true },
+      });
+    });
+
+    it("should remove a like when user already liked the post", async () => {
+      const userObjectId = new mongoose.Types.ObjectId(validUserId);
+      const mockPost = {
+        _id: postId,
+        likes: [userObjectId],
+        save: jest.fn().mockResolvedValue(true),
+      };
+      mockRequest.params = { id: postId };
+      mockRequest.body = { userId: validUserId };
+      (Post.findById as jest.Mock).mockResolvedValue(mockPost);
+
+      await toggleLike(mockRequest as Request, mockResponse as Response);
+
+      expect(mockPost.save).toHaveBeenCalled();
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.OK);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: true,
+        message: "Like removed",
+        data: { likes: expect.any(Array), liked: false },
+      });
+    });
+
+    it("should return 400 if userId is invalid", async () => {
+      mockRequest.params = { id: postId };
+      mockRequest.body = { userId: "invalid-id" };
+
+      await toggleLike(mockRequest as Request, mockResponse as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: false,
+        message: "Invalid userId",
+      });
+    });
+
+    it("should return 400 if userId is missing", async () => {
+      mockRequest.params = { id: postId };
+      mockRequest.body = {};
+
+      await toggleLike(mockRequest as Request, mockResponse as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: false,
+        message: "Invalid userId",
+      });
+    });
+
+    it("should return 404 if post not found", async () => {
+      mockRequest.params = { id: postId };
+      mockRequest.body = { userId: validUserId };
+      (Post.findById as jest.Mock).mockResolvedValue(null);
+
+      await toggleLike(mockRequest as Request, mockResponse as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.NOT_FOUND);
+      expect(jsonMock).toHaveBeenCalledWith({
+        success: false,
+        message: "Post not found",
+      });
+    });
+
+    it("should handle database errors", async () => {
+      mockRequest.params = { id: postId };
+      mockRequest.body = { userId: validUserId };
+      (Post.findById as jest.Mock).mockRejectedValue(new Error("DB error"));
+
+      await toggleLike(mockRequest as Request, mockResponse as Response);
 
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
       expect(jsonMock).toHaveBeenCalledWith({

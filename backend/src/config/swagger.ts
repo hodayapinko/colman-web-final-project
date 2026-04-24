@@ -13,7 +13,7 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: "http://localhost:3001",
+        url: "http://localhost:3000",
         description: "Development server",
       },
     ],
@@ -62,12 +62,6 @@ const options: swaggerJsdoc.Options = {
               maximum: 150,
               description: "User age",
               example: 28,
-            },
-            bio: {
-              type: "string",
-              maxLength: 500,
-              description: "User biography",
-              example: "Software developer passionate about web technologies",
             },
             profilePicture: {
               type: "string",
@@ -123,7 +117,8 @@ const options: swaggerJsdoc.Options = {
               type: "string",
               description: "Post content (minimum 10 characters)",
               minLength: 10,
-              example: "This is a comprehensive guide to getting started with Node.js development.",
+              example:
+                "This is a comprehensive guide to getting started with Node.js development.",
             },
             user: {
               type: "string",

@@ -30,14 +30,22 @@ describe("errorHandler", () => {
     process.env.NODE_ENV = "development";
     const error = new Error("Test error message");
 
-    errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
+    errorHandler(
+      error,
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext
+    );
 
     expect(statusMock).toHaveBeenCalledWith(500);
     expect(jsonMock).toHaveBeenCalledWith({
       error: "Internal Server Error",
       message: "Test error message",
     });
-    expect(consoleErrorSpy).toHaveBeenCalledWith("Error:", "Test error message");
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Error:",
+      "Test error message"
+    );
     expect(consoleErrorSpy).toHaveBeenCalledWith("Stack:", error.stack);
   });
 
@@ -45,13 +53,21 @@ describe("errorHandler", () => {
     process.env.NODE_ENV = "production";
     const error = new Error("Sensitive error message");
 
-    errorHandler(error, mockRequest as Request, mockResponse as Response, mockNext);
+    errorHandler(
+      error,
+      mockRequest as Request,
+      mockResponse as Response,
+      mockNext
+    );
 
     expect(statusMock).toHaveBeenCalledWith(500);
     expect(jsonMock).toHaveBeenCalledWith({
       error: "Internal Server Error",
       message: "Something went wrong",
     });
-    expect(consoleErrorSpy).toHaveBeenCalledWith("Error:", "Sensitive error message");
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Error:",
+      "Sensitive error message"
+    );
   });
 });

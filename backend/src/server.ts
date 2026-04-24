@@ -1,5 +1,6 @@
 import express, { Application } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import swaggerUi from "swagger-ui-express";
@@ -18,9 +19,20 @@ const app: Application = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
+  : true;
+
+app.use(
+  cors({
+    origin: corsOrigin,
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+app.use("/public", express.static("public"));
 
 // Swagger Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -30,7 +42,8 @@ app.use("/api", routes);
 
 // Root endpoint - shows server and MongoDB status
 app.get("/", (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? "Connected" : "Disconnected";
+  const dbStatus =
+    mongoose.connection.readyState === 1 ? "Connected" : "Disconnected";
   res.send(`
     <html>
       <head>
@@ -83,8 +96,8 @@ app.get("/", (req, res) => {
           <div class="status running">
             ✅ Server is running on port ${PORT}
           </div>
-          <div class="status ${dbStatus === 'Connected' ? 'connected' : 'disconnected'}">
-            ${dbStatus === 'Connected' ? '✅' : '❌'} MongoDB: ${dbStatus}
+          <div class="status ${dbStatus === "Connected" ? "connected" : "disconnected"}">
+            ${dbStatus === "Connected" ? "✅" : "❌"} MongoDB: ${dbStatus}
           </div>
           <a href="/api-docs" class="link">📚 View API Documentation</a>
         </div>

@@ -1,219 +1,320 @@
 import { Request, Response } from "express";
-import jwt, { SignOptions } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { ObjectId, Document } from "mongoose";
 import User from "../models/User.model";
-import { IUser } from "../constants/constants";
+import { TokenService, TokenPair, TokenPayload } from "../services/tokenService";
+import { OAuthService, GoogleUserPayload } from "../services/oauthService";
+import {
+  getRefreshTokenFromRequest,
+  setRefreshCookie,
+  clearRefreshCookie,
+} from "../utils/cookieUtils";
+import { HTTP_STATUS, IUser } from "../constants/constants";
 
-type TToken = {
-  accessToken: string;
-  refreshToken: string;
+type AuthenticatedRequest = Request & {
+  userId?: string;
 };
 
-const register = async (req: Request, res: Response) => {
-  try {
-    const username: string | undefined = req.body.username;
-    const email: string | undefined = req.body.email;
-    const password: string | undefined = req.body.password;
+export class AuthController {
+  static async register(req: Request, res: Response): Promise<void> {
+    try {
+      let { username, email, password } = req.body;
+      username = username?.trim();
+      email = email?.trim().toLowerCase();
 
-    if (!username || !email || !password) {
-      return res
-        .status(400)
-        .send({ message: "missing username, email or password" });
+      if (!username || !email || !password) {
+        res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ message: "username, email, and password are required" });
+        return;
+      }
+      if (!/^.{3,30}$/.test(username)) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: "Username must be between 3 and 30 characters",
+        });
+        return;
+      }
+      if (!/^\S+@\S+\.\S+$/.test(email)) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: "Please provide a valid email address",
+        });
+        return;
+      }
+
+      const existingUsername: IUser | null = await User.findOne({ username });
+      if (existingUsername) {
+        res
+          .status(HTTP_STATUS.CONFLICT)
+          .json({ message: "Username already taken" });
+        return;
+      }
+      const existingEmail: IUser | null = await User.findOne({ email });
+      if (existingEmail) {
+        res
+          .status(HTTP_STATUS.CONFLICT)
+          .json({ message: "Email already registered" });
+        return;
+      }
+
+      const hashedPassword: string = await bcrypt.hash(password, 10);
+      const user: IUser = await User.create({
+        username,
+        email,
+        password: hashedPassword,
+        refreshTokens: [],
+      });
+
+      const tokens: TokenPair | null = TokenService.generateTokenPair(user._id.toString());
+      if (!tokens) {
+        res
+          .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+          .json({ message: "Internal server error" });
+        return;
+      }
+      user.refreshTokens = [tokens.refreshToken];
+      await user.save();
+      setRefreshCookie(res, tokens.refreshToken);
+
+      res.status(HTTP_STATUS.CREATED).json({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        _id: user._id,
+        username: user.username,
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ message: "Internal server error" });
     }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    const user = await User.create({
-      username,
-      email,
-      password: hashedPassword,
-    });
-
-    res.status(201).send({
-      _id: user._id,
-      username: user.username,
-      email: user.email,
-    });
-  } catch (err) {
-    res.status(400).send(err);
-  }
-};
-
-const login = async (req: Request, res: Response) => {
-  const email: string = req.body.email;
-  const password: string = req.body.password;
-
-  if (!email || !password) {
-    return res.status(400).send({ message: "missing email or password" });
-  }
-  try {
-    const userDB = await User.findOne({ email });
-    if (!userDB) {
-      res.status(401).send({ message: "email or password incorrect" });
-      return;
-    }
-    const validPassword = await bcrypt.compare(
-      password,
-      userDB.password || "",
-    );
-    if (!validPassword) {
-      res.status(401).send({ message: "email or password incorrect" });
-      return;
-    }
-
-    const token = generateToken(userDB._id as any);
-    if (!token) {
-      res.status(500).send({ message: "internal server error" });
-      return;
-    }
-    if (!userDB.refreshTokens) {
-      userDB.refreshTokens = [];
-    }
-    userDB.refreshTokens.push(token.refreshToken);
-
-    await userDB.save();
-    res.status(200).send({
-      accessToken: token.accessToken,
-      refreshToken: token.refreshToken,
-      _id: userDB._id,
-    });
-  } catch (err) {
-    res.status(400).send(err);
-  }
-};
-
-const logout = async (req: Request, res: Response) => {
-  try {
-    const user = await verifyRefreshToken(req.body.refreshToken);
-    await user.save();
-    res.status(200).send({ message: "logout success" });
-  } catch (err) {
-    res.status(400).send({ message: "failed to Logout" });
-  }
-};
-
-const generateToken = (userId: ObjectId): TToken | null => {
-  const tokenSecret = process.env.TOKEN_SECRET;
-  if (!tokenSecret) {
-    return null;
   }
 
-  const random = Math.random().toString();
-  const tokenExpires: string = process.env.TOKEN_EXPIRES || "1h";
-  const refreshTokenExpires: string = process.env.REFRESH_TOKEN_EXPIRES || "7d";
+  static async login(req: Request, res: Response): Promise<void> {
+    try {
+      let { email, username, password } = req.body;
+      username = username?.trim();
+      email = email?.trim().toLowerCase();
 
-  const signOptions: SignOptions = { expiresIn: tokenExpires as any };
-  const refreshSignOptions: SignOptions = {
-    expiresIn: refreshTokenExpires as any,
-  };
+      if ((!email && !username) || !password) {
+        res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ message: "missing username/email or password" });
+        return;
+      }
 
-  const accessToken: string = jwt.sign(
-    {
-      _id: userId.toString(),
-      random: random,
-    },
-    tokenSecret,
-    signOptions,
-  );
+      const user: IUser | null = await User.findOne(email ? { email } : { username });
+      if (!user || !user.password) {
+        res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ message: "Invalid credentials" });
+        return;
+      }
 
-  const refreshToken: string = jwt.sign(
-    {
-      _id: userId.toString(),
-      random: random,
-    },
-    tokenSecret,
-    refreshSignOptions,
-  );
-  return {
-    accessToken: accessToken,
-    refreshToken: refreshToken,
-  };
-};
+      const isMatch: boolean = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ message: "Invalid credentials" });
+        return;
+      }
 
-const verifyRefreshToken = (refreshToken: string | undefined) => {
-  return new Promise<Document & IUser>((resolve, reject) => {
-    if (!refreshToken) {
-      reject("fail");
-      return;
+      const tokens: TokenPair | null = TokenService.generateTokenPair(user._id.toString());
+      if (!tokens) {
+        res
+          .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+          .json({ message: "Failed to generate tokens" });
+        return;
+      }
+
+      user.refreshTokens = user.refreshTokens || [];
+      user.refreshTokens.push(tokens.refreshToken);
+      await user.save();
+      setRefreshCookie(res, tokens.refreshToken);
+
+      res.status(HTTP_STATUS.OK).json({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        _id: user._id,
+        username: user.username,
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ message: "Internal server error" });
     }
-    if (!process.env.TOKEN_SECRET) {
-      reject("fail");
-      return;
-    }
-    jwt.verify(
-      refreshToken,
-      process.env.TOKEN_SECRET,
-      async (err: any, payload: any) => {
-        if (err) {
-          reject("fail");
-          return;
+  }
+
+  static async googleLogin(req: Request, res: Response): Promise<void> {
+    try {
+      const { credential }: { credential: string } = req.body;
+      if (!credential) {
+        res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ message: "missing credential" });
+        return;
+      }
+
+      const googleUser: GoogleUserPayload = await OAuthService.verifyGoogleToken(credential);
+      const normalizedEmail: string = googleUser.email.toLowerCase();
+      let user: IUser | null = await User.findOne({ email: normalizedEmail });
+
+      if (!user) {
+        const username: string = googleUser.name || normalizedEmail.split("@")[0];
+
+        user = await User.create({
+          username,
+          email: normalizedEmail,
+          googleId: googleUser.googleId,
+          profilePicture: googleUser.picture || "",
+          refreshTokens: [],
+        });
+      } else {
+        if (!user.googleId) {
+          user.googleId = googleUser.googleId;
         }
+        await user.save();
+      }
 
-        const userId = payload._id;
-        try {
-          const userDB = await User.findById(userId);
-          if (!userDB) {
-            reject("fail");
-            return;
-          }
-          if (
-            !userDB.refreshTokens ||
-            !userDB.refreshTokens.includes(refreshToken)
-          ) {
-            userDB.refreshTokens = [];
-            await userDB.save();
-            reject("fail");
-            return;
-          }
-          const tokens = userDB.refreshTokens!.filter(
-            (token) => token !== refreshToken,
+      const tokens: TokenPair | null = TokenService.generateTokenPair(user._id.toString());
+      if (!tokens) {
+        res
+          .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+          .json({ message: "Failed to generate tokens" });
+        return;
+      }
+
+      user.refreshTokens = user.refreshTokens || [];
+      if (user.refreshTokens.length >= 5) {
+        user.refreshTokens = user.refreshTokens.slice(-4);
+      }
+      user.refreshTokens.push(tokens.refreshToken);
+      await user.save();
+      setRefreshCookie(res, tokens.refreshToken);
+
+      res.status(HTTP_STATUS.OK).json({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        _id: user._id,
+        username: user.username,
+        profilePicture: user.profilePicture,
+      });
+    } catch (error) {
+      console.error("Google login error:", error);
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ message: "Internal server error" });
+    }
+  }
+
+  static async refresh(req: Request, res: Response): Promise<void> {
+    try {
+      const refreshToken: string | undefined = getRefreshTokenFromRequest(req);
+      if (!refreshToken) {
+        res.status(HTTP_STATUS.FORBIDDEN).json({ message: "Forbidden" });
+        return;
+      }
+
+      let payload: TokenPayload;
+      try {
+        payload = await TokenService.verifyRefreshToken(refreshToken);
+      } catch {
+        res.status(HTTP_STATUS.FORBIDDEN).json({ message: "Forbidden" });
+        return;
+      }
+
+      const userId: string = TokenService.extractUserIdFromToken(payload);
+      const user: IUser | null = await User.findById(userId);
+      if (!user) {
+        res.status(HTTP_STATUS.FORBIDDEN).json({ message: "Forbidden" });
+        return;
+      }
+
+      if (!user.refreshTokens || !user.refreshTokens.includes(refreshToken)) {
+        user.refreshTokens = [];
+        await user.save();
+        res.status(HTTP_STATUS.FORBIDDEN).json({ message: "Forbidden" });
+        return;
+      }
+
+      user.refreshTokens = user.refreshTokens.filter(
+        (token: string) => token !== refreshToken
+      );
+      const tokens: TokenPair | null = TokenService.generateTokenPair(user._id.toString());
+      if (!tokens) {
+        res
+          .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+          .json({ message: "Failed to generate tokens" });
+        return;
+      }
+      user.refreshTokens.push(tokens.refreshToken);
+      await user.save();
+      setRefreshCookie(res, tokens.refreshToken);
+
+      res.status(HTTP_STATUS.OK).json({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        _id: user._id,
+        username: user.username,
+      });
+    } catch (error) {
+      console.error("Refresh error:", error);
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ message: "Internal server error" });
+    }
+  }
+
+  static async logout(req: Request, res: Response): Promise<void> {
+    try {
+      const refreshToken: string | undefined = getRefreshTokenFromRequest(req);
+      if (!refreshToken) {
+        clearRefreshCookie(res);
+        res.status(HTTP_STATUS.OK).json({ message: "logout success" });
+        return;
+      }
+      try {
+        const payload: TokenPayload = await TokenService.verifyRefreshToken(refreshToken);
+        const userId: string = TokenService.extractUserIdFromToken(payload);
+        const user: IUser | null = await User.findById(userId);
+        if (user?.refreshTokens) {
+          user.refreshTokens = user.refreshTokens.filter(
+            (token: string) => token !== refreshToken
           );
-          userDB.refreshTokens = tokens;
-
-          resolve(userDB);
-        } catch (err) {
-          reject("fail");
-          return;
+          await user.save();
         }
-      },
-    );
-  });
-};
-
-const refresh = async (req: Request, res: Response) => {
-  try {
-    const user = await verifyRefreshToken(req.body.refreshToken);
-
-    if (!user._id) {
-      res.status(400).send({ message: "fail" });
-      return;
+      } catch {
+        // even if token is expired/invalid, still clear cookie and return success
+      }
+      clearRefreshCookie(res);
+      res.status(HTTP_STATUS.OK).json({ message: "logout success" });
+    } catch (error) {
+      console.error("Logout error:", error);
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ message: "Internal server error" });
     }
-
-    const tokens = generateToken(user._id as any);
-
-    if (!tokens) {
-      res.status(500).send({ message: "internal server error" });
-      return;
-    }
-    if (!user.refreshTokens) {
-      user.refreshTokens = [];
-    }
-    user.refreshTokens.push(tokens.refreshToken);
-    await user.save();
-    res.status(200).send({
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      _id: user._id,
-    });
-  } catch (err) {
-    res.status(400).send({ message: err });
   }
-};
 
-export default {
-  register,
-  login,
-  refresh,
-  logout,
-};
+  static async me(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      const userId: string | undefined = req.userId;
+      if (!userId) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: "Unauthorized" });
+        return;
+      }
+      const user = await User.findById(userId).select(
+        "-password -refreshTokens"
+      );
+      if (!user) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({ message: "User not found" });
+        return;
+      }
+      res.status(HTTP_STATUS.OK).json(user);
+    } catch (error) {
+      console.error("Get user error:", error);
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ message: "Internal server error" });
+    }
+  }
+}
