@@ -1,4 +1,5 @@
 import { type IPost, type IPostUser } from "../services/postService";
+import { API_BASE_URL } from "../services/api";
 
 export const getPostUser = (post: IPost): IPostUser | null =>
   post.user && typeof post.user === "object" ? (post.user as IPostUser) : null;
@@ -14,4 +15,4 @@ export const timeAgo = (dateStr: string): string => {
 };
 
 export const resolveImageUrl = (image: string): string =>
-  image.startsWith("http") ? image : `http://localhost:3000/${image}`;
+  image.startsWith("http") ? image : `http://${API_BASE_URL}/${image}`;
