@@ -8,6 +8,9 @@ import routes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
 import connectDB from "./config/database";
 import swaggerSpec from "./config/swagger";
+import http from "http";
+import https from "https";
+import fs from "fs";
 
 // Load environment variables
 dotenv.config();
@@ -115,9 +118,23 @@ app.get("/health", (req, res) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-});
+const startServer = () => {
+  if (process.env.NODE_ENV === "production") {
+    const sslOptions = {
+      key: fs.readFileSync("../client-key.pem"),
+      cert: fs.readFileSync("../client-cert.pem"),
+    };
+
+    https.createServer(sslOptions, app).listen(PORT, () => {
+      console.log(`Server running on HTTPS port ${PORT}`);
+    });
+  } else {
+    http.createServer(app).listen(PORT, () => {
+      console.log(`Server running on HTTP port ${PORT}`);
+    });
+  }
+};
+
+startServer();
 
 export default app;
