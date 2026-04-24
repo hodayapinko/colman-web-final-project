@@ -121,8 +121,8 @@ app.use(errorHandler);
 const startServer = () => {
   if (process.env.NODE_ENV === "production") {
     const sslOptions = {
-      key: fs.readFileSync("../client-key.pem"),
-      cert: fs.readFileSync("../client-cert.pem"),
+      key: fs.readFileSync("./client-key.pem"),
+      cert: fs.readFileSync("./client-cert.pem"),
     };
 
     https.createServer(sslOptions, app).listen(PORT, () => {
