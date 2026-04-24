@@ -88,59 +88,6 @@ export const createComment = async (
   }
 };
 
-export const getAllComments = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const comments = await Comment.find();
-
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: "Comments retrieved successfully",
-      data: comments,
-    });
-  } catch (error: any) {
-    console.error("Error retrieving comments:", error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
-
-export const getCommentById = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const { id } = req.params;
-
-    const comment = await Comment.findById(id);
-
-    if (!comment) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: false,
-        message: "Comment not found",
-      });
-      return;
-    }
-
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: "Comment retrieved successfully",
-      data: comment,
-    });
-  } catch (error: any) {
-    console.error("Error retrieving comment:", error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
 
 export const getCommentsByPostId = async (
   req: Request,
@@ -174,50 +121,6 @@ export const getCommentsByPostId = async (
   }
 };
 
-export const updateComment = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { content } = req.body;
-
-    const comment = await Comment.findById(id);
-
-    if (!comment) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({
-        success: false,
-        message: "Comment not found",
-      });
-      return;
-    }
-
-    if (!content) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({
-        success: false,
-        message: "Missing required fields: content is required",
-      });
-      return;
-    }
-
-    comment.content = content;
-
-    const updatedComment = await comment.save();
-
-    res.status(HTTP_STATUS.OK).json({
-      success: true,
-      message: "Comment updated successfully",
-      data: updatedComment,
-    });
-  } catch (error: any) {
-    console.error("Error updating comment:", error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
 
 export const deleteComment = async (
   req: Request,

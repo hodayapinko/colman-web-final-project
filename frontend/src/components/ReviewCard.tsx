@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { type IPost, postService } from "../services/postService";
 import { getPostUser, timeAgo, resolveImageUrl } from "../utils/postUtils";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../services/api";
 
 interface ReviewCardProps {
   post: IPost;
@@ -36,7 +37,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
   const avatarSrc = postUser?.profilePicture
     ? postUser.profilePicture.startsWith("http")
       ? postUser.profilePicture
-      : `http://localhost:3000/public/${postUser.profilePicture}`
+      : `http://${API_BASE_URL}/public/${postUser.profilePicture}`
     : undefined;
   const isFeed = mode === "feed";
   const isMine = mode === "mine";

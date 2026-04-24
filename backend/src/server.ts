@@ -8,6 +8,10 @@ import routes from "./routes";
 import { errorHandler } from "./middleware/errorHandler";
 import connectDB from "./config/database";
 import swaggerSpec from "./config/swagger";
+import http from "http";
+import https from "https";
+import fs from "fs";
+import path from "path";
 
 // Load environment variables
 dotenv.config();
@@ -18,14 +22,9 @@ connectDB();
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-const corsOrigin = process.env.CORS_ORIGIN
-  ? process.env.CORS_ORIGIN.split(",").map((o) => o.trim())
-  : true;
-
 app.use(
   cors({
-    origin: corsOrigin,
+    origin: true,
     credentials: true,
   })
 );
@@ -33,6 +32,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use("/public", express.static("public"));
+
+// Serve React client static files
+const clientPath = path.join(__dirname, "../../frontend/dist");
+app.use(express.static(clientPath));
+
+// React Router fallback - return index.html for non-API routes
+app.get("/{*path}", (req, res) => {
+  res.sendFile(path.join(clientPath, "index.html"));
+});
+
 
 // Swagger Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -115,9 +124,23 @@ app.get("/health", (req, res) => {
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-});
+const startServer = () => {
+  if (process.env.NODE_ENV === "production") {
+    const sslOptions = {
+      key: fs.readFileSync("./client-key.pem"),
+      cert: fs.readFileSync("./client-cert.pem"),
+    };
+
+    https.createServer(sslOptions, app).listen(PORT, () => {
+      console.log(`Server running on HTTPS port ${PORT}`);
+    });
+  } else {
+    http.createServer(app).listen(PORT, () => {
+      console.log(`Server running on HTTP port ${PORT}`);
+    });
+  }
+};
+
+startServer();
 
 export default app;
