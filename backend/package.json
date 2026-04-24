@@ -11,7 +11,8 @@
     "dev:watch": "nodemon --exec ts-node src/server.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "prod": "tsc -p tsconfig_prod.json && (pm2 restart ecosystem.config.js --env production || pm2 start ecosystem.config.js --env production)"
   },
   "keywords": [
     "express",
