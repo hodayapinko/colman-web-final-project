@@ -1,185 +1,202 @@
 import { Response } from "express";
-import Post from "../../models/Post.model";
 import { aiSearch, reindexPosts } from "../ai.controller";
 import { HTTP_STATUS } from "../../constants/constants";
 import { findSimilarChunks, reindexAllPosts } from "../../services/embedding";
 import {
-  buildAiPrompt,
-  getCachedResponse,
-  getGeminiClient,
-  isWithinGlobalRateLimit,
-  isWithinUserRateLimit,
-  parseGeminiResponse,
-  setCachedResponse,
+  getGenAI,
+  checkRateLimit,
+  checkGlobalLimit,
+  getCachedResult,
+  setCachedResult,
 } from "../../utils/aiUtils";
 
 jest.mock("../../models/Post.model");
 jest.mock("../../services/embedding");
 jest.mock("../../utils/aiUtils", () => ({
-  TOP_K_SIMILAR_CHUNKS: 5,
-  buildAiPrompt: jest.fn(),
-  getCachedResponse: jest.fn(),
-  setCachedResponse: jest.fn(),
-  isWithinUserRateLimit: jest.fn(),
-  isWithinGlobalRateLimit: jest.fn(),
-  getGeminiClient: jest.fn(),
-  parseGeminiResponse: jest.fn(),
+  getGenAI: jest.fn(),
+  checkRateLimit: jest.fn().mockReturnValue(true),
+  checkGlobalLimit: jest.fn().mockReturnValue(true),
+  getCachedResult: jest.fn().mockReturnValue(null),
+  setCachedResult: jest.fn(),
 }));
 
+import Post from "../../models/Post.model";
+
 describe("AI Controller", () => {
-  let mockResponse: Partial<Response>;
   let jsonMock: jest.Mock;
   let statusMock: jest.Mock;
+  let mockRes: Partial<Response>;
 
   beforeEach(() => {
     jsonMock = jest.fn();
     statusMock = jest.fn().mockReturnValue({ json: jsonMock });
-    mockResponse = { status: statusMock, json: jsonMock };
-
-    (getCachedResponse as jest.Mock).mockReturnValue(null);
-    (setCachedResponse as jest.Mock).mockImplementation(() => undefined);
-    (isWithinUserRateLimit as jest.Mock).mockReturnValue(true);
-    (isWithinGlobalRateLimit as jest.Mock).mockReturnValue(true);
-    (buildAiPrompt as jest.Mock).mockReturnValue("PROMPT");
-
+    mockRes = { status: statusMock, json: jsonMock };
     jest.clearAllMocks();
+
+    (checkRateLimit as jest.Mock).mockReturnValue(true);
+    (checkGlobalLimit as jest.Mock).mockReturnValue(true);
+    (getCachedResult as jest.Mock).mockReturnValue(null);
   });
 
   describe("aiSearch", () => {
     it("returns 400 when query is missing", async () => {
-      const mockRequest: any = { body: {}, userId: "u1" };
-
-      await aiSearch(mockRequest, mockResponse as Response);
+      await aiSearch({ body: {}, userId: "u1" } as any, mockRes as Response);
 
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
       expect(jsonMock).toHaveBeenCalledWith({ message: "Search query is required." });
     });
 
-    it("returns cached response when present", async () => {
-      const cached = { answer: "cached", sources: [] };
-      (getCachedResponse as jest.Mock).mockReturnValue(cached);
+    it("returns 400 when query is empty string", async () => {
+      await aiSearch({ body: { query: "   " }, userId: "u1" } as any, mockRes as Response);
 
-      const mockRequest: any = { body: { query: "hi" }, userId: "u1" };
-      await aiSearch(mockRequest, mockResponse as Response);
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.BAD_REQUEST);
+    });
+
+    it("returns cached response when available", async () => {
+      const cached = { answer: "cached answer", sources: [] };
+      (getCachedResult as jest.Mock).mockReturnValue(cached);
+
+      await aiSearch({ body: { query: "test" }, userId: "u1" } as any, mockRes as Response);
 
       expect(jsonMock).toHaveBeenCalledWith(cached);
       expect(findSimilarChunks).not.toHaveBeenCalled();
     });
 
     it("returns 429 when user rate limited", async () => {
-      (isWithinUserRateLimit as jest.Mock).mockReturnValue(false);
+      (checkRateLimit as jest.Mock).mockReturnValue(false);
 
-      const mockRequest: any = { body: { query: "hi" }, userId: "u1" };
-      await aiSearch(mockRequest, mockResponse as Response);
+      await aiSearch({ body: { query: "test" }, userId: "u1" } as any, mockRes as Response);
 
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.TOO_MANY_REQUESTS);
-      expect(jsonMock).toHaveBeenCalledWith({
-        message: "Too many requests — please wait a moment.",
-      });
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Too many AI requests. Please wait a moment." });
     });
 
-    it("returns empty sources when no similar chunks found", async () => {
+    it("returns 429 when global rate limited", async () => {
+      (checkGlobalLimit as jest.Mock).mockReturnValue(false);
+
+      await aiSearch({ body: { query: "test" }, userId: "u1" } as any, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.TOO_MANY_REQUESTS);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Server is reaching capacity. Try again in a minute." });
+    });
+
+
+    it("returns empty when no chunks found", async () => {
       (findSimilarChunks as jest.Mock).mockResolvedValue([]);
 
-      const mockRequest: any = { body: { query: "paris" }, userId: "u1" };
-      await aiSearch(mockRequest, mockResponse as Response);
+      await aiSearch({ body: { query: "paris" }, userId: "u1" } as any, mockRes as Response);
 
-      expect(jsonMock).toHaveBeenCalledWith({
-        answer: "No relevant hotel reviews found.",
-        sources: [],
-      });
+      expect(jsonMock).toHaveBeenCalledWith({ answer: "No data available to search.", sources: [] });
     });
 
-    it("returns answer and mapped sources on success", async () => {
+    it("returns answer and sources on success", async () => {
       (findSimilarChunks as jest.Mock).mockResolvedValue([
-        { postId: "p1", chunkIndex: 0, content: "c1", score: 0.9 },
+        { postId: "p1", chunkIndex: 0, content: "Great hotel", score: 0.9 },
       ]);
 
       (Post.find as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnValue({
+        populate: jest.fn().mockReturnValue({
           lean: jest.fn().mockResolvedValue([
-            { _id: "p1", location: "Paris", rating: 5 },
+            { _id: { toString: () => "p1" }, title: "Nice Hotel", location: "Paris", rating: 5 },
           ]),
         }),
       });
 
-      (getGeminiClient as jest.Mock).mockResolvedValue({
+      const mockGenAI = {
         models: {
-          generateContent: jest.fn().mockResolvedValue({ text: "RAW" }),
+          generateContent: jest.fn().mockResolvedValue({
+            text: '{"answer":"Try Paris","sources":[1]}',
+          }),
         },
-      });
+      };
+      (getGenAI as jest.Mock).mockReturnValue(mockGenAI);
 
-      (parseGeminiResponse as jest.Mock).mockReturnValue({
-        answer: "Try Paris",
-        sources: [1],
-      });
+      await aiSearch({ body: { query: "best hotel" }, userId: "u1" } as any, mockRes as Response);
 
-      const mockRequest: any = { body: { query: "best" }, userId: "u1" };
-      await aiSearch(mockRequest, mockResponse as Response);
-
-      expect(setCachedResponse).toHaveBeenCalled();
+      expect(setCachedResult).toHaveBeenCalled();
       expect(jsonMock).toHaveBeenCalledWith({
         answer: "Try Paris",
-        sources: [{ postId: "p1", location: "Paris", rating: 5 }],
+        sources: [{ postId: "p1", title: "Nice Hotel", location: "Paris", rating: 5 }],
       });
     });
 
-    it("returns 429 busy when downstream throws status 429", async () => {
+    it("handles unparseable Gemini response gracefully", async () => {
       (findSimilarChunks as jest.Mock).mockResolvedValue([
         { postId: "p1", chunkIndex: 0, content: "c1", score: 0.9 },
       ]);
 
       (Post.find as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          lean: jest.fn().mockResolvedValue([{ _id: "p1", location: "Paris", rating: 5 }]),
+        populate: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue([
+            { _id: { toString: () => "p1" }, title: "T", location: "L", rating: 3 },
+          ]),
         }),
       });
 
-      (getGeminiClient as jest.Mock).mockResolvedValue({
+      (getGenAI as jest.Mock).mockReturnValue({
+        models: {
+          generateContent: jest.fn().mockResolvedValue({ text: "not json at all" }),
+        },
+      });
+
+      await aiSearch({ body: { query: "test" }, userId: "u1" } as any, mockRes as Response);
+
+      expect(jsonMock).toHaveBeenCalledWith({
+        answer: "Could not process search. Please try a different query.",
+        sources: [],
+      });
+    });
+
+    it("returns 429 when downstream API throws 429", async () => {
+      (findSimilarChunks as jest.Mock).mockResolvedValue([
+        { postId: "p1", chunkIndex: 0, content: "c1", score: 0.9 },
+      ]);
+
+      (Post.find as jest.Mock).mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          lean: jest.fn().mockResolvedValue([
+            { _id: { toString: () => "p1" }, title: "T", location: "L", rating: 3 },
+          ]),
+        }),
+      });
+
+      (getGenAI as jest.Mock).mockReturnValue({
         models: {
           generateContent: jest.fn().mockRejectedValue({ status: 429, message: "busy" }),
         },
       });
 
-      const mockRequest: any = { body: { query: "best" }, userId: "u1" };
-      await aiSearch(mockRequest, mockResponse as Response);
+      await aiSearch({ body: { query: "test" }, userId: "u1" } as any, mockRes as Response);
 
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.TOO_MANY_REQUESTS);
-      expect(jsonMock).toHaveBeenCalledWith({
-        message: "AI service is busy — please retry in a few seconds.",
-      });
+    });
+
+    it("returns 500 on unexpected error", async () => {
+      (findSimilarChunks as jest.Mock).mockRejectedValue(new Error("db down"));
+
+      await aiSearch({ body: { query: "test" }, userId: "u1" } as any, mockRes as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      expect(jsonMock).toHaveBeenCalledWith({ message: "AI search failed. Please try again." });
     });
   });
 
   describe("reindexPosts", () => {
-    it("returns reindex result", async () => {
-      (reindexAllPosts as jest.Mock).mockResolvedValue({ indexed: 1, skipped: 2, errors: 0 });
+    it("returns reindex result on success", async () => {
+      (reindexAllPosts as jest.Mock).mockResolvedValue({ indexed: 2, skipped: 1, errors: 0 });
 
-      const mockRequest: any = { userId: "u1", query: {} };
-      await reindexPosts(mockRequest, mockResponse as Response);
+      await reindexPosts({} as any, mockRes as Response);
 
-      expect(reindexAllPosts).toHaveBeenCalledWith(false);
-      expect(jsonMock).toHaveBeenCalledWith({ indexed: 1, skipped: 2, errors: 0 });
+      expect(jsonMock).toHaveBeenCalledWith({ indexed: 2, skipped: 1, errors: 0 });
     });
 
-    it("passes force=true when query param is set", async () => {
-      (reindexAllPosts as jest.Mock).mockResolvedValue({ indexed: 3, skipped: 0, errors: 0 });
-
-      const mockRequest: any = { userId: "u1", query: { force: "true" } };
-      await reindexPosts(mockRequest, mockResponse as Response);
-
-      expect(reindexAllPosts).toHaveBeenCalledWith(true);
-      expect(jsonMock).toHaveBeenCalledWith({ indexed: 3, skipped: 0, errors: 0 });
-    });
-
-    it("returns 500 when reindex fails", async () => {
+    it("returns 500 on failure", async () => {
       (reindexAllPosts as jest.Mock).mockRejectedValue(new Error("fail"));
 
-      const mockRequest: any = { userId: "u1", query: {} };
-      await reindexPosts(mockRequest, mockResponse as Response);
+      await reindexPosts({} as any, mockRes as Response);
 
       expect(statusMock).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR);
-      expect(jsonMock).toHaveBeenCalledWith({ message: "Reindex posts failed." });
+      expect(jsonMock).toHaveBeenCalledWith({ message: "Reindex failed." });
     });
   });
 });

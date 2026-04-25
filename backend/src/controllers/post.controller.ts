@@ -6,7 +6,7 @@ import { HTTP_STATUS, IPost } from "../constants/constants";
 import mongoose from "mongoose";
 import { findUserById } from "./shared/functions";
 import { deletePostEmbedding, upsertPostEmbedding } from "../services/embedding";
-import { clearResponseCache } from "../utils/aiUtils";
+import { clearSearchCache } from "../utils/aiUtils";
 
 export const getAllPosts = async (
   req: Request,
@@ -167,19 +167,22 @@ export const createPost = async (
 
     const savedPost = await newPost.save();
 
+    // Populate user for embedding so the username is included in searchable text
+    const populatedPost = await Post.findById(savedPost._id).populate("user", "username").lean();
+
     // Generate embedding before responding so the post is searchable immediately
-    if (process.env.GEMINI_API_KEY) {
       try {
-        await upsertPostEmbedding(savedPost as unknown as IPost);
-        clearResponseCache();
+        if (populatedPost) {
+          await upsertPostEmbedding(populatedPost as unknown as IPost & { user?: { username?: string } });
+        }
       } catch (embErr) {
         console.error("[Embedding] Failed to index new post:", embErr);
       }
-    }
+    
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: "Post created successfully",
+      message:"Post created successfully",
       data: savedPost,
     });
   } catch (error: any) {
@@ -298,19 +301,20 @@ export const updatePost = async (
       return;
     }
 
-    // Re-generate embedding before responding so updated content is searchable immediately
-    if (process.env.GEMINI_API_KEY) {
+    // Re-generate embedding with populated user so updated content is searchable immediately
       try {
-        await upsertPostEmbedding(updatedPost as unknown as IPost);
-        clearResponseCache();
+        const populatedUpdated = await Post.findById(updatedPost._id).populate("user", "username").lean();
+        if (populatedUpdated) {
+          await upsertPostEmbedding(populatedUpdated as unknown as IPost & { user?: { username?: string } });
+        }
+        clearSearchCache();
       } catch (embErr) {
         console.error("[Embedding] Failed to reindex updated post:", embErr);
-      }
     }
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: "Post updated successfully",
+      message:  "Post updated successfully",
       data: updatedPost,
     });
   } catch (error: any) {
@@ -406,10 +410,10 @@ export const deletePost = async (
       }
     }
 
-    // Always delete embeddings, even if GEMINI_API_KEY is unset (cleanup)
+    // Always delete embeddings and clear AI cache
     try {
       await deletePostEmbedding(id);
-      clearResponseCache();
+      clearSearchCache();
     } catch (embErr) {
       console.error("[Embedding] Failed to delete post embeddings:", embErr);
     }

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { Box, Button, TextField, Chip, Snackbar, Alert } from "@mui/material";
+import { Box, Button, TextField, Chip, Snackbar, Alert, CircularProgress } from "@mui/material";
 import { Clear } from "@mui/icons-material";
 import { aiService } from "../services/aiService";
 
@@ -9,6 +9,7 @@ interface AiSearchInputProps {
 
 const AiSearchInput: React.FC<AiSearchInputProps> = ({ onFilterChange }) => {
   const [query, setQuery] = useState("");
+  const [lastQuery, setLastQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
   const [filterCount, setFilterCount] = useState(0);
@@ -16,10 +17,11 @@ const AiSearchInput: React.FC<AiSearchInputProps> = ({ onFilterChange }) => {
 
   const runSearch = useCallback(async () => {
     const q = query.trim();
-    if (!q) return;
+    if (!q || q.toLowerCase() === lastQuery) return;
 
     setLoading(true);
     setToast(null);
+    setLastQuery(q.toLowerCase());
 
     try {
       const result = await aiService.search(q);
@@ -50,6 +52,7 @@ const AiSearchInput: React.FC<AiSearchInputProps> = ({ onFilterChange }) => {
     setIsFiltering(false);
     setFilterCount(0);
     setQuery("");
+    setLastQuery("");
     setToast(null);
     onFilterChange?.(null);
   }, [onFilterChange]);
@@ -67,16 +70,24 @@ const AiSearchInput: React.FC<AiSearchInputProps> = ({ onFilterChange }) => {
             if (e.key === "Enter") runSearch();
           }}
           placeholder='e.g. "Best reviews in Paris"'
+          autoComplete="off"
         />
         <Button
           variant="contained"
           onClick={runSearch}
           disabled={loading || !query.trim()}
-          sx={{ bgcolor: "#6344F5", "&:hover": { bgcolor: "#512DC8" } }}
+          sx={{ bgcolor: "#6344F5", "&:hover": { bgcolor: "#512DC8" }, minWidth: 64 }}
         >
-          {loading ? "..." : "Go"}
+          {loading ? <CircularProgress size={20} sx={{ color: "white" }} /> : "Go"}
         </Button>
       </Box>
+
+      {loading && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, color: "text.secondary" }}>
+          <CircularProgress size={16} />
+          AI is thinking...
+        </Box>
+      )}
 
       {isFiltering && (
         <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>

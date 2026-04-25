@@ -1,120 +1,40 @@
 import mongoose from "mongoose";
+import { IPost } from "../constants/constants";
 import Post from "../models/Post.model";
 import Embedding from "../models/Emmbeding";
-import { IPost } from "../constants/constants";
 import {
-  CHUNK_OVERLAP,
-  CHUNK_SIZE,
-  ChunkMatch,
-  REINDEX_DELAY_MS,
-  REINDEX_RATELIMIT_MS,
-} from "../utils/aiEmbeddingUtils";
-
-let genAI: unknown | null = null;
-
-async function getGenAI(): Promise<any> {
-  if (!genAI) {
-    const key = process.env.GEMINI_API_KEY ?? "";
-    if (!key) throw new Error("GEMINI_API_KEY is not set");
-    const mod = await import("@google/genai");
-    const GoogleGenAI = (mod as any).GoogleGenAI;
-    genAI = new GoogleGenAI({ apiKey: key });
-  }
-  return genAI as any;
-}
-
-// ── Text preparation ────────────────────────────────────────
-
-/**
- * Build a single searchable string from a post's fields.
- * Intentionally filters to ONLY: rating, location, and content.
- */
-export function buildPostText(post: Pick<IPost, "title" | "content" | "location" | "rating">): string {
-  const parts = [
-    post.title ? `Title: ${post.title}` : "",
-    post.location ? `Location: ${post.location}` : "",
-    post.rating != null ? `Rating: ${post.rating} / 5` : "",
-    post.content ? `Content: ${post.content}` : "",
-  ];
-  return parts.filter(Boolean).join(". ");
-}
-
-/**
- * Split text into overlapping chunks of ~CHUNK_SIZE characters,
- * preferring sentence boundaries to avoid cutting mid-sentence.
- */
-export function splitIntoChunks(text: string): string[] {
-  if (text.length <= CHUNK_SIZE) return [text];
-
-  const chunks: string[] = [];
-  let start = 0;
-
-  while (start < text.length) {
-    let end = Math.min(start + CHUNK_SIZE, text.length);
-
-    if (end < text.length) {
-      const lookback     = Math.floor(CHUNK_SIZE * 0.2);
-      const searchStart  = end - lookback;
-      const segment      = text.slice(searchStart, end);
-      const sentenceEnd  = segment.search(/[.!?]\s/);
-      if (sentenceEnd !== -1) end = searchStart + sentenceEnd + 1;
-    }
-
-    chunks.push(text.slice(start, end).trim());
-    start = end - CHUNK_OVERLAP;
-    if (start < 0) start = 0;
-    if (end >= text.length) break;
-  }
-
-  return chunks.filter((c) => c.length > 0);
-}
+  getGenAI,
+  buildPostText,
+  splitIntoChunks,
+  cosineSimilarity,
+  delay,
+  REINDEX_DELAY,
+  REINDEX_ERROR_DELAY,
+} from "../utils/aiUtils";
 
 // ── Embedding generation ────────────────────────────────────
 
-/**
- * Call the Gemini embedding API for a single text string.
- */
-export async function generateEmbedding(text: string): Promise<number[]> {
+export const generateEmbedding = async (text: string): Promise<number[]> => {
   try {
-    const client = await getGenAI();
-    const result = await client.models.embedContent({
-      model: "gemini-embedding-001",
-      contents: text,
-    });
-    const values = result.embeddings?.[0]?.values
-                ?? result.embedding?.values
-                ?? [];
-    if (values.length === 0) {
-      console.error("[Embedding] API returned empty embedding vector. Response:", JSON.stringify(result).slice(0, 500));
-      throw new Error("Gemini returned an empty embedding vector");
-    }
-    return values;
+    const result = await getGenAI().models.embedContent({ model: "gemini-embedding-001", contents: text });
+    return result.embeddings?.[0]?.values ?? [];
   } catch (err: unknown) {
-    const status  = (err as { status?: number }).status;
+    const status = (err as { status?: number }).status;
     const message = (err as { message?: string }).message ?? String(err);
     console.error(`[Embedding] generateEmbedding failed — status: ${status ?? "unknown"}, message: ${message}`);
     throw err;
   }
-}
+};
 
-// ── Hotel embedding CRUD ────────────────────────────────────
+// ── Post embedding CRUD ─────────────────────────────────────
 
-/**
- * Create or update all chunk embeddings for a hotel review.
- * Stale chunks from a previous version are removed automatically.
- */
-export async function upsertPostEmbedding(post: IPost): Promise<void> {
+export const upsertPostEmbedding = async (
+  post: IPost & { user?: { username?: string } | mongoose.Types.ObjectId }
+): Promise<void> => {
   const text = buildPostText(post);
-  if (!text.trim()) {
-    console.warn(`[Embedding] Skipping post ${post._id} — no indexable text`);
-    return;
-  }
-
   const chunks = splitIntoChunks(text);
 
-  const embeddings = await Promise.all(
-    chunks.map((chunk) => generateEmbedding(chunk))
-  );
+  const embeddings = await Promise.all(chunks.map((chunk) => generateEmbedding(chunk)));
 
   const ops = chunks.map((content, i) => ({
     updateOne: {
@@ -124,121 +44,81 @@ export async function upsertPostEmbedding(post: IPost): Promise<void> {
     },
   }));
 
-  if (ops.length > 0) await Embedding.bulkWrite(ops);
+  if (ops.length > 0) {
+    await Embedding.bulkWrite(ops);
+  }
 
-  // Remove stale chunks if this post previously had more
   await Embedding.deleteMany({ post: post._id, chunkIndex: { $gte: chunks.length } });
-}
+};
 
-/**
- * Delete all embeddings associated with a hotel.
- */
-export async function deletePostEmbedding(
+
+export const deletePostEmbedding = async (
   postId: mongoose.Types.ObjectId | string
-): Promise<void> {
+): Promise<void> => {
   await Embedding.deleteMany({ post: postId });
-}
+};
 
 // ── Vector search ───────────────────────────────────────────
 
-/**
- * Cosine similarity between two equal-length vectors.
- */
-export function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0, normA = 0, normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot   += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
+export interface ChunkMatch {
+  postId: string;
+  chunkIndex: number;
+  content: string;
+  score: number;
 }
 
-/**
- * Find the top-K chunks most similar to a query string.
- * Returns results sorted by descending cosine similarity score.
- */
-export async function findSimilarChunks(
+export const findSimilarChunks = async (
   queryText: string,
   limit = 5
-): Promise<ChunkMatch[]> {
-  const allEmbeddings = await Embedding.find().lean();
-  if (allEmbeddings.length === 0) {
-    console.warn("[Embedding] No embeddings in DB — collection is empty");
-    return [];
-  }
-
-  // Filter out any embeddings with empty vectors
-  const validEmbeddings = allEmbeddings.filter(
-    (emb) => emb.embedding && emb.embedding.length > 0
-  );
-  if (validEmbeddings.length === 0) {
-    console.warn("[Embedding] All embeddings have empty vectors — reindex needed");
-    return [];
-  }
-
+): Promise<ChunkMatch[]> => {
   const queryEmbedding = await generateEmbedding(queryText);
 
-  return validEmbeddings
-    .map((emb) => ({
-      postId:     emb.post.toString(),
-      chunkIndex: emb.chunkIndex,
-      content:    emb.content,
-      score:      cosineSimilarity(queryEmbedding, emb.embedding),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
-}
+  const allEmbeddings = await Embedding.find().lean();
+  if (allEmbeddings.length === 0) return [];
 
-// ── Reindex ─────────────────────────────────────────────────
+  const scored: ChunkMatch[] = allEmbeddings.map((emb: { post: mongoose.Types.ObjectId; chunkIndex: number; content: string; embedding: number[] }) => ({
+    postId: emb.post.toString(),
+    chunkIndex: emb.chunkIndex,
+    content: emb.content,
+    score: cosineSimilarity(queryEmbedding, emb.embedding),
+  }));
 
-const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit);
+};
 
-/**
- * Index all hotels that don't yet have embeddings.
- * Processes sequentially with delays to respect API rate limits.
- */
-export async function reindexAllPosts(force = false): Promise<{
-  indexed: number;
-  skipped: number;
-  errors: number;
-}> {
-  // Clean up any broken embeddings (empty vectors)
-  const deleted = await Embedding.deleteMany({ embedding: { $size: 0 } });
-  if (deleted.deletedCount > 0) {
-    console.log(`[Embedding] Cleaned up ${deleted.deletedCount} empty embedding(s)`);
-  }
+// ── Backfill / Reindex ──────────────────────────────────────
 
-  const posts = await Post.find().lean();
+export const reindexAllPosts = async (force = false): Promise<{ indexed: number; skipped: number; errors: number }> => {
+  const posts = await Post.find().populate("user", "username").lean();
 
-  let indexedIds = new Set<string>();
+  let existingPostIds = new Set<string>();
   if (!force) {
-    indexedIds = new Set(
-      (await Embedding.distinct("post")).map((id: mongoose.Types.ObjectId) =>
-        id.toString()
-      )
+    existingPostIds = new Set(
+      (await Embedding.distinct("post")).map((id: mongoose.Types.ObjectId) => id.toString())
     );
   }
 
-  let indexed = 0, skipped = 0, errors = 0;
+  let indexed = 0;
+  let skipped = 0;
+  let errors = 0;
 
   for (const post of posts) {
-    if (!force && indexedIds.has(post._id.toString())) {
+    if (!force && existingPostIds.has(post._id.toString())) {
       skipped++;
       continue;
     }
     try {
-      await upsertPostEmbedding(post as unknown as IPost);
+      await upsertPostEmbedding(post as unknown as IPost & { user?: { username?: string } });
       indexed++;
-      console.log(`[Embedding] Indexed post ${post._id} — ${post.location ?? "(no location)"}`);
-      await delay(REINDEX_DELAY_MS);
+      console.log(`[Embedding] Indexed post ${post._id} (${post.title})`);
+      await delay(REINDEX_DELAY);
     } catch (err) {
       errors++;
       console.error(`[Embedding] Failed to index post ${post._id}:`, err);
-      await delay(REINDEX_RATELIMIT_MS);
+      await delay(REINDEX_ERROR_DELAY);
     }
   }
 
   return { indexed, skipped, errors };
-}
+};

@@ -42,6 +42,7 @@ const options: swaggerJsdoc.Options = {
                 type: "object",
                 properties: {
                   postId: { type: "string", example: "507f1f77bcf86cd799439011" },
+                  title: { type: "string", example: "Amazing stay in Paris" },
                   location: { type: "string", nullable: true, example: "Paris" },
                   rating: { type: "number", nullable: true, example: 5 },
                 },

@@ -16,51 +16,27 @@ const router = Router();
  * /api/ai/search:
  *   post:
  *     summary: AI search over reviews
- *     description: Uses embeddings + Gemini to answer questions using only rating/location/content context.
+ *     description: Uses embeddings + Gemini to answer questions based on post reviews. Filters by username, title, content, rating, and location.
  *     tags: [AI]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - query
- *             properties:
- *               query:
- *                 type: string
- *                 example: "Best hotels in Paris with rating 5"
+ *             $ref: '#/components/schemas/AiSearchRequest'
  *     responses:
  *       200:
  *         description: AI answer and sources
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 answer:
- *                   type: string
- *                   example: "Based on the reviews, ..."
- *                 sources:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       postId:
- *                         type: string
- *                         example: "507f1f77bcf86cd799439011"
- *                       location:
- *                         type: string
- *                         nullable: true
- *                         example: "Paris"
- *                       rating:
- *                         type: number
- *                         nullable: true
- *                         example: 5
+ *               $ref: '#/components/schemas/AiSearchResponse'
  *       400:
- *         description: Missing query
+ *         description: Missing or empty query
  *       429:
- *         description: Rate limited / AI busy
+ *         description: Rate limited or AI busy
  *       500:
  *         description: Internal server error
  */
@@ -71,25 +47,24 @@ router.post("/search", authMiddleware, aiSearch);
  * /api/ai/reindex-posts:
  *   post:
  *     summary: Reindex post embeddings
- *     description: Generates embeddings for posts that don't have them yet.
+ *     description: Generates embeddings for posts that don't have them yet. Use ?force=true to re-embed all posts.
  *     tags: [AI]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: force
+ *         schema:
+ *           type: string
+ *           enum: ["true", "false"]
+ *         description: Set to "true" to re-embed all posts, even those already indexed
  *     responses:
  *       200:
  *         description: Reindex summary
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 indexed:
- *                   type: number
- *                   example: 10
- *                 skipped:
- *                   type: number
- *                   example: 5
- *                 errors:
- *                   type: number
- *                   example: 0
+ *               $ref: '#/components/schemas/AiReindexResponse'
  *       500:
  *         description: Internal server error
  */
