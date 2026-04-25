@@ -1,4 +1,8 @@
-import { Box, Fab, CircularProgress } from "@mui/material";
+import {
+  Box,
+  Fab,
+  CircularProgress,
+} from "@mui/material";
 import { LanguageOutlined, Add } from "@mui/icons-material";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +13,7 @@ import { useFeedEmptyState } from "../utils/emptyStateConfig";
 import PageTopBar from "../components/PageTopBar";
 import ReviewList from "../components/ReviewList";
 import AppBottomNav from "../components/AppBottomNav";
+import AiSearchInput from "../components/AiSearchInput";
 
 const PAGE_SIZE = 5;
 
@@ -18,6 +23,7 @@ const Feed: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [aiFilterIds, setAiFilterIds] = useState<string[] | null>(null);
   const pageRef = useRef(1);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const isFetchingRef = useRef(false);
@@ -26,6 +32,32 @@ const Feed: React.FC = () => {
   const handleLogout = useLogout();
   const navigate = useNavigate();
   const feedEmptyState = useFeedEmptyState();
+
+  const handleAiFilterChange = useCallback(async (postIds: string[] | null) => {
+    setAiFilterIds(postIds);
+    if (!postIds) return;
+
+    // Fetch any AI-matched posts not yet loaded (due to pagination)
+    const loadedIds = new Set(posts.map((p) => p._id));
+    const missingIds = postIds.filter((id) => !loadedIds.has(id));
+    if (missingIds.length > 0) {
+      try {
+        const fetched = await Promise.all(
+          missingIds.map((id) => postService.getById(id))
+        );
+        setPosts((prev) => {
+          const existingIds = new Set(prev.map((p) => p._id));
+          return [...prev, ...fetched.filter((p) => !existingIds.has(p._id))];
+        });
+      } catch {
+        // If some posts can't be fetched, just show what we have
+      }
+    }
+  }, [posts]);
+
+  const displayedPosts = aiFilterIds
+    ? posts.filter((p) => aiFilterIds.includes(p._id))
+    : posts;
 
   const fetchPage = useCallback(async (pageNum: number) => {
     if (isFetchingRef.current) return;
@@ -95,8 +127,10 @@ const Feed: React.FC = () => {
       />
 
       <Box sx={{ flex: 1, px: 2, pt: 2 }}>
+        <AiSearchInput onFilterChange={handleAiFilterChange} />
+
         <ReviewList
-          posts={posts}
+          posts={displayedPosts}
           isLoading={isLoading}
           commentCounts={commentCounts}
           mode="feed"

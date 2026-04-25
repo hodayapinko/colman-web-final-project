@@ -2,22 +2,23 @@ import { Request, Response } from "express";
 import fs from "fs";
 import path from "path";
 import Post from "../models/Post.model";
-import { HTTP_STATUS } from "../constants/constants";
+import { HTTP_STATUS, IPost } from "../constants/constants";
 import mongoose from "mongoose";
 import { findUserById } from "./shared/functions";
+import { removePostEmbedding, indexPostEmbedding } from "../services/embedding";
+import { invalidateSearchCache } from "../utils/aiUtils";
 
 export const getAllPosts = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
   try {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const page = Math.max(1, parseInt(req.query?.page as string) || 1);
     const limit = Math.min(
       50,
-      Math.max(1, parseInt(req.query.limit as string) || 10),
+      Math.max(1, parseInt(req.query?.limit as string) || 10),
     );
     const skip = (page - 1) * limit;
-
     const [posts, total] = await Promise.all([
       Post.find()
         .populate("user", "username profilePicture")
@@ -166,9 +167,22 @@ export const createPost = async (
 
     const savedPost = await newPost.save();
 
+    // Populate user for embedding so the username is included in searchable text
+    const populatedPost = await Post.findById(savedPost._id).populate("user", "username").lean();
+
+    // Generate embedding before responding so the post is searchable immediately
+      try {
+        if (populatedPost) {
+          await indexPostEmbedding(populatedPost as unknown as IPost & { user?: { username?: string } });
+        }
+      } catch (embErr) {
+        console.error("[Embedding] Failed to index new post:", embErr);
+      }
+    
+
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: "Post created successfully",
+      message:"Post created successfully",
       data: savedPost,
     });
   } catch (error: any) {
@@ -287,9 +301,20 @@ export const updatePost = async (
       return;
     }
 
+    // Re-generate embedding with populated user so updated content is searchable immediately
+      try {
+        const populatedUpdated = await Post.findById(updatedPost._id).populate("user", "username").lean();
+        if (populatedUpdated) {
+          await indexPostEmbedding(populatedUpdated as unknown as IPost & { user?: { username?: string } });
+        }
+        invalidateSearchCache();
+      } catch (embErr) {
+        console.error("[Embedding] Failed to reindex updated post:", embErr);
+    }
+
     res.status(HTTP_STATUS.OK).json({
       success: true,
-      message: "Post updated successfully",
+      message:  "Post updated successfully",
       data: updatedPost,
     });
   } catch (error: any) {
@@ -383,6 +408,14 @@ export const deletePost = async (
       if (fs.existsSync(oldAbsolute)) {
         fs.unlinkSync(oldAbsolute);
       }
+    }
+
+    // Always delete embeddings and clear AI cache
+    try {
+      await removePostEmbedding(id);
+      invalidateSearchCache();
+    } catch (embErr) {
+      console.error("[Embedding] Failed to delete post embeddings:", embErr);
     }
 
     res.status(HTTP_STATUS.OK).json({
