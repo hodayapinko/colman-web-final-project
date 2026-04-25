@@ -5,14 +5,15 @@ import commentsRoutes from "./comment.routes";
 import authRouter from "./authRoute";
 import fileRoutes from "./file.routes";
 import aiRoutes from "./ai.routes";
+import { authMiddleware } from "../middleware/authMiddleware";
 
 const router = Router();
 
-router.use("/posts", postRoutes);
-router.use("/users", userRoutes);
-router.use("/comments", commentsRoutes);
+router.use("/posts", authMiddleware, postRoutes);
+router.use("/users", authMiddleware, userRoutes);
+router.use("/comments", authMiddleware, commentsRoutes);
 router.use("/auth", authRouter);
-router.use("/file", fileRoutes);
-router.use("/ai", aiRoutes);
+router.use("/file", authMiddleware, fileRoutes);
+router.use("/ai", authMiddleware,  aiRoutes);
 
 export default router;
