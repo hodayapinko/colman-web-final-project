@@ -1,193 +1,91 @@
-import { Request, Response } from "express";
-import { GoogleGenAI } from "@google/genai";
-import Hotel from "../models/Hotel.model";
-import { findSimilarChunks, reindexAllHotels } from "../services/embedding";
-
-// ── Auth request type (matches authMiddleware) ─────────────
-interface AuthRequest extends Request {
-  userId?: string;
-}
-
-// ── Gemini client (lazy singleton) ─────────────────────────
-let genAI: GoogleGenAI | null = null;
-
-function getGenAI(): GoogleGenAI {
-  if (!genAI) {
-    const key = process.env.GEMINI_API_KEY ?? "";
-    if (!key) throw new Error("GEMINI_API_KEY is not set");
-    console.log(
-      `[AI] Initializing Gemini client — key: ${key.slice(0, 8)}...${key.slice(-4)}`
-    );
-    genAI = new GoogleGenAI({ apiKey: key });
-  }
-  return genAI;
-}
-
-// ── Types ───────────────────────────────────────────────────
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-interface CacheEntry {
-  data: unknown;
-  expiresAt: number;
-}
-
-interface HotelSource {
-  hotelId: string;
-  name: string;
-  location: string;
-  rating?: number;
-  priceRange?: string;
-}
-
-interface SearchResponse {
-  answer: string;
-  sources: HotelSource[];
-}
-
-// ── Constants ───────────────────────────────────────────────
-const RATE_WINDOW_MS = 60_000;
-const USER_RATE_LIMIT = 5;
-const GLOBAL_RATE_LIMIT = 10;
-const CACHE_TTL_MS = 5 * 60_000;
-const TOP_K_CHUNKS = 5;
-
-// ── Rate limiting ───────────────────────────────────────────
-const userLimits = new Map<string, RateLimitEntry>();
-let globalCount = 0;
-let globalResetAt = Date.now();
-
-function withinUserLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = userLimits.get(userId);
-  if (!entry || now > entry.resetAt) {
-    userLimits.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= USER_RATE_LIMIT) return false;
-  entry.count++;
-  return true;
-}
-
-function withinGlobalLimit(): boolean {
-  const now = Date.now();
-  if (now > globalResetAt) {
-    globalCount = 0;
-    globalResetAt = now + RATE_WINDOW_MS;
-  }
-  if (globalCount >= GLOBAL_RATE_LIMIT) return false;
-  globalCount++;
-  return true;
-}
-
-// ── Response cache ──────────────────────────────────────────
-const cache = new Map<string, CacheEntry>();
-
-function getCached(key: string): unknown | null {
-  const entry = cache.get(key);
-  if (!entry || Date.now() > entry.expiresAt) return null;
-  return entry.data;
-}
-
-function setCached(key: string, data: unknown): void {
-  cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
-}
-
-// ── Prompt builder ──────────────────────────────────────────
-function buildPrompt(context: string, query: string): string {
-  return `You are a hotel recommendation assistant. Your job is to help users find the best hotels based on reviews, ratings, price range, location, and amenities.
-
-Answer the user's question using ONLY the context provided below.
-- If asked about location, highlight proximity to landmarks or city centers.
-- If asked about price, mention value-for-money based on the reviews.
-- If asked about amenities (pool, spa, gym, breakfast, etc.), extract that from the reviews.
-- If asked for the best hotels, rank by rating if available.
-- If the context lacks sufficient information, say so honestly.
-- Be concise and match the language of the user's question.
-
---- CONTEXT ---
-${context}
---- END CONTEXT ---
-
-User question: "${query}"
-
-Reply with JSON only (no markdown fences):
-{
-  "answer": "<your helpful answer based on the context>",
-  "sources": [<1-based indexes of the sources you used, e.g. 1, 2>]
-}`;
-}
-
-// ── Parse Gemini response ───────────────────────────────────
-function parseGeminiResponse(raw: string): { answer: string; sources: number[] } {
-  const cleaned = raw
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
-  return JSON.parse(cleaned);
-}
+import { Response } from "express";
+import Post from "../models/Post.model";
+import { findSimilarChunks, reindexAllPosts } from "../services/embedding";
+import { HTTP_STATUS } from "../constants/constants";
+import {
+  IAuthRequest,
+  IGeminiJsonResponse,
+  IPostSource,
+  ISearchResponse,
+} from "../utils/aiTypes";
+import {
+  buildAiPrompt,
+  getCachedResponse,
+  getGeminiClient,
+  isWithinGlobalRateLimit,
+  isWithinUserRateLimit,
+  parseGeminiResponse,
+  setCachedResponse,
+  TOP_K_SIMILAR_CHUNKS,
+} from "../utils/aiUtils";
 
 // ── Main controller ─────────────────────────────────────────
-export async function aiSearch(req: AuthRequest, res: Response): Promise<void> {
+export async function aiSearch(req: IAuthRequest, res: Response): Promise<void> {
   try {
     const query = (req.body.query ?? "").trim();
     if (!query) {
-      res.status(400).json({ message: "Search query is required." });
+      res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ message: "Search query is required." });
       return;
     }
 
     const cacheKey = query.toLowerCase();
-    const cached = getCached(cacheKey);
+    const cached = getCachedResponse(cacheKey);
     if (cached) {
       res.json(cached);
       return;
     }
 
-    if (!withinUserLimit(req.userId!)) {
+    if (!isWithinUserRateLimit(req.userId!)) {
       res
-        .status(429)
+        .status(HTTP_STATUS.TOO_MANY_REQUESTS)
         .json({ message: "Too many requests — please wait a moment." });
       return;
     }
-    if (!withinGlobalLimit()) {
+    if (!isWithinGlobalRateLimit()) {
       res
-        .status(429)
+        .status(HTTP_STATUS.TOO_MANY_REQUESTS)
         .json({ message: "Server is at capacity — try again shortly." });
       return;
     }
 
     // Step 1 — vector search over hotel review chunks
-    const chunks = await findSimilarChunks(query, TOP_K_CHUNKS);
-    if (chunks.length === 0) {
+    const similarChunks = await findSimilarChunks(query, TOP_K_SIMILAR_CHUNKS);
+    if (similarChunks.length === 0) {
       console.warn(`[AI] No chunks found for: "${query}". Run /api/ai/reindex.`);
       res.json({ answer: "No relevant hotel reviews found.", sources: [] });
       return;
     }
 
-    // Step 2 — fetch hotel metadata
-    const hotelIds = [...new Set(chunks.map((c) => c.hotelId))];
-    const hotels = await Hotel.find({ _id: { $in: hotelIds } })
-      .populate("owner", "username profileImage")
+    // Step 2 — fetch post metadata and drop orphaned chunks (deleted posts)
+    const postIds = [...new Set(similarChunks.map((c) => c.postId))];
+    const matchedPosts = await Post.find({ _id: { $in: postIds } })
+      .select("title location rating")
       .lean();
-    const hotelMap = new Map(hotels.map((h) => [h._id.toString(), h]));
+    const postById = new Map(matchedPosts.map((p) => [p._id.toString(), p]));
 
-    const contextBlocks = chunks.map((chunk, i) => {
-      const hotel = hotelMap.get(chunk.hotelId);
-      const label = hotel
-        ? `${hotel.name} — ${hotel.location} (Rating: ${hotel.rating ?? "N/A"}, Price: ${hotel.priceRange ?? "N/A"})`
-        : "Unknown Hotel";
+    // Keep only chunks whose post still exists
+    const validChunks = similarChunks.filter((c) => postById.has(c.postId));
+    if (validChunks.length === 0) {
+      res.json({ answer: "No relevant hotel reviews found.", sources: [] });
+      return;
+    }
+
+    const contextBlocks = validChunks.map((chunk, i) => {
+      const post = postById.get(chunk.postId)!;
+      const label = `${post.location ?? "Unknown location"} (Rating: ${post.rating ?? "N/A"})`;
       return `[Source ${i + 1} — ${label}]\n${chunk.content}`;
     });
 
     // Step 3 — LLM generation
-    const prompt = buildPrompt(contextBlocks.join("\n\n"), query);
+    const prompt = buildAiPrompt(contextBlocks.join("\n\n"), query);
     console.log(
-      `[AI] Querying Gemini — query: "${query}", chunks: ${chunks.length}`
+      `[AI] Querying Gemini — query: "${query}", chunks: ${similarChunks.length}`
     );
 
-    const result = await getGenAI().models.generateContent({
+    const client = await getGeminiClient();
+    const result = await client.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
       config: { temperature: 0.2 },
@@ -196,7 +94,7 @@ export async function aiSearch(req: AuthRequest, res: Response): Promise<void> {
     const rawText = (result.text ?? "").trim();
     console.log(`[AI] Response preview: ${rawText.slice(0, 300)}`);
 
-    let parsed: { answer: string; sources: number[] };
+    let parsed: IGeminiJsonResponse;
     try {
       parsed = parseGeminiResponse(rawText);
     } catch {
@@ -211,27 +109,25 @@ export async function aiSearch(req: AuthRequest, res: Response): Promise<void> {
     // Step 4 — map source indexes back to hotel data
     const seen = new Set<string>();
     const sources = (parsed.sources ?? [])
-      .filter((idx) => idx >= 1 && idx <= chunks.length)
+      .filter((idx) => idx >= 1 && idx <= validChunks.length)
       .map((idx) => {
-        const hotel = hotelMap.get(chunks[idx - 1].hotelId);
-        return hotel
-          ? {
-              hotelId: hotel._id.toString(),
-              name: hotel.name,
-              location: hotel.location,
-              rating: hotel.rating,
-              priceRange: hotel.priceRange,
-            }
-          : null;
+        const post = postById.get(validChunks[idx - 1].postId);
+        if (!post) return null;
+        return {
+          postId: post._id.toString(),
+          title: post.title,
+          location: post.location,
+          rating: post.rating,
+        } as IPostSource;
       })
-      .filter((s): s is HotelSource => {
-        if (!s || seen.has(s.hotelId)) return false;
-        seen.add(s.hotelId);
+      .filter((s): s is IPostSource => {
+        if (!s || seen.has(s.postId)) return false;
+        seen.add(s.postId);
         return true;
       });
 
-    const response: SearchResponse = { answer: parsed.answer ?? "", sources };
-    setCached(cacheKey, response);
+    const response: ISearchResponse = { answer: parsed.answer ?? "", sources };
+    setCachedResponse(cacheKey, response);
     res.json(response);
   } catch (err: unknown) {
     const status = (err as { status?: number }).status;
@@ -240,26 +136,31 @@ export async function aiSearch(req: AuthRequest, res: Response): Promise<void> {
       `[AI] Error — status: ${status ?? "unknown"}, message: ${message}`
     );
 
-    if (status === 429) {
+    if (status === HTTP_STATUS.TOO_MANY_REQUESTS) {
       res
-        .status(429)
+        .status(HTTP_STATUS.TOO_MANY_REQUESTS)
         .json({ message: "AI service is busy — please retry in a few seconds." });
       return;
     }
-    res.status(500).json({ message: "AI search failed. Please try again." });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ message: "AI search failed. Please try again." });
   }
 }
 
 // ── Reindex controller ──────────────────────────────────────
-export async function reindex(
-  _req: AuthRequest,
+export async function reindexPosts(
+  req: IAuthRequest,
   res: Response
 ): Promise<void> {
   try {
-    const result = await reindexAllHotels();
+    const force = req.query.force === "true";
+    const result = await reindexAllPosts(force);
     res.json(result);
   } catch (err) {
     console.error("[AI] Reindex error:", err);
-    res.status(500).json({ message: "Reindex failed." });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ message: "Reindex posts failed." });
   }
 }

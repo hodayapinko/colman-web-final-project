@@ -1,67 +1,41 @@
-import { GoogleGenAI } from "@google/genai";
 import mongoose from "mongoose";
+import Post from "../models/Post.model";
+import Embedding from "../models/Emmbeding";
+import { IPost } from "../constants/constants";
+import {
+  CHUNK_OVERLAP,
+  CHUNK_SIZE,
+  ChunkMatch,
+  REINDEX_DELAY_MS,
+  REINDEX_RATELIMIT_MS,
+} from "../utils/aiEmbeddingUtils";
 
-// ── Gemini client (lazy singleton) ─────────────────────────
+let genAI: unknown | null = null;
 
-let genAI: GoogleGenAI | null = null;
-
-function getGenAI(): GoogleGenAI {
+async function getGenAI(): Promise<any> {
   if (!genAI) {
     const key = process.env.GEMINI_API_KEY ?? "";
     if (!key) throw new Error("GEMINI_API_KEY is not set");
+    const mod = await import("@google/genai");
+    const GoogleGenAI = (mod as any).GoogleGenAI;
     genAI = new GoogleGenAI({ apiKey: key });
   }
-  return genAI;
-}
-
-// ── Constants ───────────────────────────────────────────────
-
-const CHUNK_SIZE    = 900;  // ~800–1000 characters per chunk
-const CHUNK_OVERLAP = 100;  // overlap to preserve context at boundaries
-const REINDEX_DELAY_MS      = 3_000;
-const REINDEX_RATELIMIT_MS  = 10_000;
-
-// ── Types ───────────────────────────────────────────────────
-
-export interface ChunkMatch {
-  hotelId: string;
-  chunkIndex: number;
-  content: string;
-  score: number;
+  return genAI as any;
 }
 
 // ── Text preparation ────────────────────────────────────────
 
 /**
- * Build a single searchable string from a hotel's fields.
- * Includes name, location, rating, price range, amenities, and review text.
+ * Build a single searchable string from a post's fields.
+ * Intentionally filters to ONLY: rating, location, and content.
  */
-export function buildHotelText(hotel: {
-  name: string;
-  location: string;
-  rating?: number;
-  priceRange?: string;
-  amenities?: string[];
-  description?: string;
-  owner?: { username?: string } | mongoose.Types.ObjectId | string;
-}): string {
-  const author =
-    typeof hotel.owner === "object" &&
-    hotel.owner !== null &&
-    "username" in hotel.owner
-      ? (hotel.owner as { username?: string }).username
-      : undefined;
-
+export function buildPostText(post: Pick<IPost, "title" | "content" | "location" | "rating">): string {
   const parts = [
-    `Hotel: ${hotel.name}`,
-    `Location: ${hotel.location}`,
-    hotel.rating     != null ? `Rating: ${hotel.rating} / 5`      : "",
-    hotel.priceRange          ? `Price range: ${hotel.priceRange}` : "",
-    hotel.amenities?.length   ? `Amenities: ${hotel.amenities.join(", ")}` : "",
-    hotel.description         ? `Review: ${hotel.description}`     : "",
-    author                    ? `Reviewer: ${author}`              : "",
+    post.title ? `Title: ${post.title}` : "",
+    post.location ? `Location: ${post.location}` : "",
+    post.rating != null ? `Rating: ${post.rating} / 5` : "",
+    post.content ? `Content: ${post.content}` : "",
   ];
-
   return parts.filter(Boolean).join(". ");
 }
 
@@ -102,11 +76,19 @@ export function splitIntoChunks(text: string): string[] {
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   try {
-    const result = await getGenAI().models.embedContent({
+    const client = await getGenAI();
+    const result = await client.models.embedContent({
       model: "gemini-embedding-001",
       contents: text,
     });
-    return result.embeddings?.[0]?.values ?? [];
+    const values = result.embeddings?.[0]?.values
+                ?? result.embedding?.values
+                ?? [];
+    if (values.length === 0) {
+      console.error("[Embedding] API returned empty embedding vector. Response:", JSON.stringify(result).slice(0, 500));
+      throw new Error("Gemini returned an empty embedding vector");
+    }
+    return values;
   } catch (err: unknown) {
     const status  = (err as { status?: number }).status;
     const message = (err as { message?: string }).message ?? String(err);
@@ -121,10 +103,13 @@ export async function generateEmbedding(text: string): Promise<number[]> {
  * Create or update all chunk embeddings for a hotel review.
  * Stale chunks from a previous version are removed automatically.
  */
-export async function upsertHotelEmbedding(
-  hotel: IHotel & { owner?: { username?: string } | mongoose.Types.ObjectId }
-): Promise<void> {
-  const text   = buildHotelText(hotel);
+export async function upsertPostEmbedding(post: IPost): Promise<void> {
+  const text = buildPostText(post);
+  if (!text.trim()) {
+    console.warn(`[Embedding] Skipping post ${post._id} — no indexable text`);
+    return;
+  }
+
   const chunks = splitIntoChunks(text);
 
   const embeddings = await Promise.all(
@@ -133,7 +118,7 @@ export async function upsertHotelEmbedding(
 
   const ops = chunks.map((content, i) => ({
     updateOne: {
-      filter: { hotel: hotel._id, chunkIndex: i },
+      filter: { post: post._id, chunkIndex: i },
       update: { content, embedding: embeddings[i] },
       upsert: true,
     },
@@ -141,17 +126,17 @@ export async function upsertHotelEmbedding(
 
   if (ops.length > 0) await Embedding.bulkWrite(ops);
 
-  // Remove stale chunks if this hotel previously had more
-  await Embedding.deleteMany({ hotel: hotel._id, chunkIndex: { $gte: chunks.length } });
+  // Remove stale chunks if this post previously had more
+  await Embedding.deleteMany({ post: post._id, chunkIndex: { $gte: chunks.length } });
 }
 
 /**
  * Delete all embeddings associated with a hotel.
  */
-export async function deleteHotelEmbedding(
-  hotelId: mongoose.Types.ObjectId | string
+export async function deletePostEmbedding(
+  postId: mongoose.Types.ObjectId | string
 ): Promise<void> {
-  await Embedding.deleteMany({ hotel: hotelId });
+  await Embedding.deleteMany({ post: postId });
 }
 
 // ── Vector search ───────────────────────────────────────────
@@ -178,14 +163,26 @@ export async function findSimilarChunks(
   queryText: string,
   limit = 5
 ): Promise<ChunkMatch[]> {
+  const allEmbeddings = await Embedding.find().lean();
+  if (allEmbeddings.length === 0) {
+    console.warn("[Embedding] No embeddings in DB — collection is empty");
+    return [];
+  }
+
+  // Filter out any embeddings with empty vectors
+  const validEmbeddings = allEmbeddings.filter(
+    (emb) => emb.embedding && emb.embedding.length > 0
+  );
+  if (validEmbeddings.length === 0) {
+    console.warn("[Embedding] All embeddings have empty vectors — reindex needed");
+    return [];
+  }
+
   const queryEmbedding = await generateEmbedding(queryText);
-  const allEmbeddings  = await Embedding.find().lean();
 
-  if (allEmbeddings.length === 0) return [];
-
-  return allEmbeddings
+  return validEmbeddings
     .map((emb) => ({
-      hotelId:    emb.hotel.toString(),
+      postId:     emb.post.toString(),
       chunkIndex: emb.chunkIndex,
       content:    emb.content,
       score:      cosineSimilarity(queryEmbedding, emb.embedding),
@@ -202,38 +199,43 @@ const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
  * Index all hotels that don't yet have embeddings.
  * Processes sequentially with delays to respect API rate limits.
  */
-export async function reindexAllHotels(): Promise<{
+export async function reindexAllPosts(force = false): Promise<{
   indexed: number;
   skipped: number;
   errors: number;
 }> {
-  const hotels = await Hotel.find()
-    .populate("owner", "username profileImage")
-    .lean();
+  // Clean up any broken embeddings (empty vectors)
+  const deleted = await Embedding.deleteMany({ embedding: { $size: 0 } });
+  if (deleted.deletedCount > 0) {
+    console.log(`[Embedding] Cleaned up ${deleted.deletedCount} empty embedding(s)`);
+  }
 
-  const indexedIds = new Set(
-    (await Embedding.distinct("hotel")).map((id: mongoose.Types.ObjectId) =>
-      id.toString()
-    )
-  );
+  const posts = await Post.find().lean();
+
+  let indexedIds = new Set<string>();
+  if (!force) {
+    indexedIds = new Set(
+      (await Embedding.distinct("post")).map((id: mongoose.Types.ObjectId) =>
+        id.toString()
+      )
+    );
+  }
 
   let indexed = 0, skipped = 0, errors = 0;
 
-  for (const hotel of hotels) {
-    if (indexedIds.has(hotel._id.toString())) {
+  for (const post of posts) {
+    if (!force && indexedIds.has(post._id.toString())) {
       skipped++;
       continue;
     }
     try {
-      await upsertHotelEmbedding(
-        hotel as unknown as IHotel & { owner?: { username?: string } }
-      );
+      await upsertPostEmbedding(post as unknown as IPost);
       indexed++;
-      console.log(`[Embedding] Indexed hotel ${hotel._id} — ${hotel.name} (${hotel.location})`);
+      console.log(`[Embedding] Indexed post ${post._id} — ${post.location ?? "(no location)"}`);
       await delay(REINDEX_DELAY_MS);
     } catch (err) {
       errors++;
-      console.error(`[Embedding] Failed to index hotel ${hotel._id}:`, err);
+      console.error(`[Embedding] Failed to index post ${post._id}:`, err);
       await delay(REINDEX_RATELIMIT_MS);
     }
   }

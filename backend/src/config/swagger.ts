@@ -19,6 +19,44 @@ const options: swaggerJsdoc.Options = {
     ],
     components: {
       schemas: {
+        AiSearchRequest: {
+          type: "object",
+          required: ["query"],
+          properties: {
+            query: {
+              type: "string",
+              example: "Best hotels in Paris with rating 5",
+            },
+          },
+        },
+        AiSearchResponse: {
+          type: "object",
+          properties: {
+            answer: {
+              type: "string",
+              example: "Based on the reviews, ...",
+            },
+            sources: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  postId: { type: "string", example: "507f1f77bcf86cd799439011" },
+                  location: { type: "string", nullable: true, example: "Paris" },
+                  rating: { type: "number", nullable: true, example: 5 },
+                },
+              },
+            },
+          },
+        },
+        AiReindexResponse: {
+          type: "object",
+          properties: {
+            indexed: { type: "number", example: 10 },
+            skipped: { type: "number", example: 5 },
+            errors: { type: "number", example: 0 },
+          },
+        },
         User: {
           type: "object",
           required: ["username", "email"],

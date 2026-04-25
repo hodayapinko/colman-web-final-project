@@ -2,22 +2,23 @@ import { Request, Response } from "express";
 import fs from "fs";
 import path from "path";
 import Post from "../models/Post.model";
-import { HTTP_STATUS } from "../constants/constants";
+import { HTTP_STATUS, IPost } from "../constants/constants";
 import mongoose from "mongoose";
 import { findUserById } from "./shared/functions";
+import { deletePostEmbedding, upsertPostEmbedding } from "../services/embedding";
+import { clearResponseCache } from "../utils/aiUtils";
 
 export const getAllPosts = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
   try {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const page = Math.max(1, parseInt(req.query?.page as string) || 1);
     const limit = Math.min(
       50,
-      Math.max(1, parseInt(req.query.limit as string) || 10),
+      Math.max(1, parseInt(req.query?.limit as string) || 10),
     );
     const skip = (page - 1) * limit;
-
     const [posts, total] = await Promise.all([
       Post.find()
         .populate("user", "username profilePicture")
@@ -166,6 +167,16 @@ export const createPost = async (
 
     const savedPost = await newPost.save();
 
+    // Generate embedding before responding so the post is searchable immediately
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        await upsertPostEmbedding(savedPost as unknown as IPost);
+        clearResponseCache();
+      } catch (embErr) {
+        console.error("[Embedding] Failed to index new post:", embErr);
+      }
+    }
+
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: "Post created successfully",
@@ -287,6 +298,16 @@ export const updatePost = async (
       return;
     }
 
+    // Re-generate embedding before responding so updated content is searchable immediately
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        await upsertPostEmbedding(updatedPost as unknown as IPost);
+        clearResponseCache();
+      } catch (embErr) {
+        console.error("[Embedding] Failed to reindex updated post:", embErr);
+      }
+    }
+
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: "Post updated successfully",
@@ -383,6 +404,14 @@ export const deletePost = async (
       if (fs.existsSync(oldAbsolute)) {
         fs.unlinkSync(oldAbsolute);
       }
+    }
+
+    // Always delete embeddings, even if GEMINI_API_KEY is unset (cleanup)
+    try {
+      await deletePostEmbedding(id);
+      clearResponseCache();
+    } catch (embErr) {
+      console.error("[Embedding] Failed to delete post embeddings:", embErr);
     }
 
     res.status(HTTP_STATUS.OK).json({

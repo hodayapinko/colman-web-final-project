@@ -55,9 +55,15 @@ describe("Post Controller", () => {
 
       (Post.find as jest.Mock).mockReturnValue({
         populate: jest.fn().mockReturnValue({
-          sort: jest.fn().mockResolvedValue(mockPosts),
+          sort: jest.fn().mockReturnValue({
+            skip: jest.fn().mockReturnValue({
+              limit: jest.fn().mockResolvedValue(mockPosts),
+            }),
+          }),
         }),
       });
+
+      (Post.countDocuments as jest.Mock).mockResolvedValue(mockPosts.length);
 
       await getAllPosts(mockRequest as Request, mockResponse as Response);
 
@@ -67,15 +73,28 @@ describe("Post Controller", () => {
         success: true,
         message: "Posts retrieved successfully",
         data: mockPosts,
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: mockPosts.length,
+          totalPages: 1,
+          hasMore: false,
+        },
       });
     });
 
     it("should handle database errors", async () => {
       (Post.find as jest.Mock).mockReturnValue({
         populate: jest.fn().mockReturnValue({
-          sort: jest.fn().mockRejectedValue(new Error("DB error")),
+          sort: jest.fn().mockReturnValue({
+            skip: jest.fn().mockReturnValue({
+              limit: jest.fn().mockRejectedValue(new Error("DB error")),
+            }),
+          }),
         }),
       });
+
+      (Post.countDocuments as jest.Mock).mockResolvedValue(0);
 
       await getAllPosts(mockRequest as Request, mockResponse as Response);
 
