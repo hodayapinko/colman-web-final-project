@@ -5,8 +5,8 @@ import Post from "../models/Post.model";
 import { HTTP_STATUS, IPost } from "../constants/constants";
 import mongoose from "mongoose";
 import { findUserById } from "./shared/functions";
-import { deletePostEmbedding, upsertPostEmbedding } from "../services/embedding";
-import { clearSearchCache } from "../utils/aiUtils";
+import { removePostEmbedding, indexPostEmbedding } from "../services/embedding";
+import { invalidateSearchCache } from "../utils/aiUtils";
 
 export const getAllPosts = async (
   req: Request,
@@ -173,7 +173,7 @@ export const createPost = async (
     // Generate embedding before responding so the post is searchable immediately
       try {
         if (populatedPost) {
-          await upsertPostEmbedding(populatedPost as unknown as IPost & { user?: { username?: string } });
+          await indexPostEmbedding(populatedPost as unknown as IPost & { user?: { username?: string } });
         }
       } catch (embErr) {
         console.error("[Embedding] Failed to index new post:", embErr);
@@ -305,9 +305,9 @@ export const updatePost = async (
       try {
         const populatedUpdated = await Post.findById(updatedPost._id).populate("user", "username").lean();
         if (populatedUpdated) {
-          await upsertPostEmbedding(populatedUpdated as unknown as IPost & { user?: { username?: string } });
+          await indexPostEmbedding(populatedUpdated as unknown as IPost & { user?: { username?: string } });
         }
-        clearSearchCache();
+        invalidateSearchCache();
       } catch (embErr) {
         console.error("[Embedding] Failed to reindex updated post:", embErr);
     }
@@ -412,8 +412,8 @@ export const deletePost = async (
 
     // Always delete embeddings and clear AI cache
     try {
-      await deletePostEmbedding(id);
-      clearSearchCache();
+      await removePostEmbedding(id);
+      invalidateSearchCache();
     } catch (embErr) {
       console.error("[Embedding] Failed to delete post embeddings:", embErr);
     }

@@ -12,7 +12,7 @@ import http from "http";
 import https from "https";
 import fs from "fs";
 import path from "path";
-import { reindexAllPosts } from "./services/embedding";
+import { reindexAllPostEmbeddings } from "./services/embedding";
 
 // Load environment variables
 dotenv.config();
@@ -20,7 +20,7 @@ dotenv.config();
 // Connect to MongoDB
 connectDB().then(() => {
   if (process.env.GEMINI_API_KEY) {
-    reindexAllPosts().then((r) => {
+    reindexAllPostEmbeddings().then((r) => {
       if (r.indexed > 0) console.log(`[Startup] Indexed ${r.indexed} post(s) missing embeddings`);
     }).catch((err) => console.error("[Startup] Auto-reindex failed:", err));
   }

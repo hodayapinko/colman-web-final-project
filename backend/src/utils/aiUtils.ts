@@ -1,12 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 import mongoose from "mongoose";
+import { HTTP_STATUS } from "../constants/constants";
 
 export const REINDEX_DELAY = 3000;
 export const REINDEX_ERROR_DELAY = 10000;
 
 // ── Gemini client singleton ─────────────────────────────────
 
-export const getGenAI = (): GoogleGenAI => {  
+export const getGeminiClient = (): GoogleGenAI => {  
   let genAI: GoogleGenAI | null = null;
   let currentKey = "";
   const key = process.env.GEMINI_API_KEY || "";
@@ -29,7 +30,7 @@ let globalRequestCount = 0;
 let globalRateLimitReset = Date.now();
 const GLOBAL_RATE_LIMIT = 10;
 
-export const checkGlobalLimit = (): boolean => {
+export const isWithinGlobalRateLimit = (): boolean => {
   const now = Date.now();
   if (now - globalRateLimitReset > RATE_WINDOW) {
     globalRequestCount = 0;
@@ -40,7 +41,7 @@ export const checkGlobalLimit = (): boolean => {
   return true;
 };
 
-export const checkRateLimit = (userId: string): boolean => {
+export const isWithinUserRateLimit = (userId: string): boolean => {
   const now = Date.now();
   const entry = rateLimitMap.get(userId);
   if (!entry || now > entry.resetAt) {
@@ -58,23 +59,23 @@ export const checkRateLimit = (userId: string): boolean => {
 const searchCache = new Map<string, { data: unknown; expiresAt: number }>();
 const CACHE_TTL = 5 * 60 * 1000;
 
-export const getCachedResult = (key: string): unknown | null => {
+export const getCachedSearchResponse = (key: string): unknown | null => {
   const cached = searchCache.get(key);
   if (cached && Date.now() < cached.expiresAt) return cached.data;
   return null;
 };
 
-export const setCachedResult = (key: string, data: unknown): void => {
+export const cacheSearchResponse = (key: string, data: unknown): void => {
   searchCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL });
 };
 
-export const clearSearchCache = (): void => {
+export const invalidateSearchCache = (): void => {
   searchCache.clear();
 };
 
 // ── Text preparation ────────────────────────────────────────
 
-export const buildPostText = (post: {
+export const buildSearchablePostText = (post: {
   title: string;
   content: string;
   location?: string;
@@ -98,7 +99,7 @@ export const buildPostText = (post: {
 const CHUNK_SIZE = 900;
 const CHUNK_OVERLAP = 100;
 
-export const splitIntoChunks = (text: string): string[] => {
+export const splitTextIntoChunks = (text: string): string[] => {
   if (text.length <= CHUNK_SIZE) return [text];
 
   const chunks: string[] = [];
@@ -128,7 +129,7 @@ export const splitIntoChunks = (text: string): string[] => {
 
 // ── Vector math ─────────────────────────────────────────────
 
-export const cosineSimilarity = (a: number[], b: number[]): number => {
+export const calculateCosineSimilarity = (a: number[], b: number[]): number => {
   let dot = 0;
   let normA = 0;
   let normB = 0;
@@ -159,7 +160,7 @@ export const withRetry = async <T>(
       return await fn();
     } catch (err: unknown) {
       const status = (err as { status?: number }).status;
-      if (status === 429 && attempt < MAX_RETRIES) {
+      if (status === HTTP_STATUS.TOO_MANY_REQUESTS && attempt < MAX_RETRIES) {
         const wait = INITIAL_BACKOFF * Math.pow(2, attempt);
         console.warn(`[${label}] Rate limited (429), retrying in ${wait}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
         await delay(wait);

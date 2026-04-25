@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { aiSearch, reindexPosts } from "../controllers/ai.controller";
+import { handleAiSearch, handleReindexPosts } from "../controllers/ai.controller";
 import { authMiddleware } from "../middleware/authMiddleware";
 
 const router = Router();
@@ -40,7 +40,7 @@ const router = Router();
  *       500:
  *         description: Internal server error
  */
-router.post("/search", authMiddleware, aiSearch);
+router.post("/search", authMiddleware, handleAiSearch);
 
 /**
  * @swagger
@@ -68,6 +68,6 @@ router.post("/search", authMiddleware, aiSearch);
  *       500:
  *         description: Internal server error
  */
-router.post("/reindex-posts", authMiddleware, reindexPosts);
+router.post("/reindex-posts", authMiddleware, handleReindexPosts);
 
 export default router;

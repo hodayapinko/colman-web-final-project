@@ -1,13 +1,13 @@
 import { Request, Response } from "express";
-import { findSimilarChunks, reindexAllPosts } from "../services/embedding";
+import { findRelevantChunks, reindexAllPostEmbeddings } from "../services/embedding";
 import Post from "../models/Post.model";
 import { HTTP_STATUS } from "../constants/constants";
 import {
-  getGenAI,
-  checkRateLimit,
-  checkGlobalLimit,
-  getCachedResult,
-  setCachedResult,
+  getGeminiClient,
+  isWithinUserRateLimit,
+  isWithinGlobalRateLimit,
+  getCachedSearchResponse,
+  cacheSearchResponse,
 } from "../utils/aiUtils";
 
 interface AuthRequest extends Request {
@@ -16,7 +16,7 @@ interface AuthRequest extends Request {
 
 const TOP_K_CHUNKS = 5;
 
-export const aiSearch = async (
+export const handleAiSearch = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
@@ -31,25 +31,25 @@ export const aiSearch = async (
     const trimmedQuery = query.trim().toLowerCase();
 
     // ── Cache check ───────────────────────────────────────
-    const cached = getCachedResult(trimmedQuery);
+    const cached = getCachedSearchResponse(trimmedQuery);
     if (cached) {
       res.json(cached);
       return;
     }
 
     // ── Rate limits ───────────────────────────────────────
-    if (!checkRateLimit(req.userId!)) {
+    if (!isWithinUserRateLimit(req.userId!)) {
       res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({ message: "Too many AI requests. Please wait a moment." });
       return;
     }
-    if (!checkGlobalLimit()) {
+    if (!isWithinGlobalRateLimit()) {
       res.status(HTTP_STATUS.TOO_MANY_REQUESTS).json({ message: "Server is reaching capacity. Try again in a minute." });
       return;
     }
 
 
     // ── RAG Step 1: Query Embedding + Vector Search ───────
-    const topChunks = await findSimilarChunks(query.trim(), TOP_K_CHUNKS);
+    const topChunks = await findRelevantChunks(query.trim(), TOP_K_CHUNKS);
 
     if (topChunks.length === 0) {
       console.warn(`[AI] No embeddings found for query: "${query.trim()}" — Embedding collection may be empty. Run /api/ai/reindex.`);
@@ -91,7 +91,7 @@ Respond in JSON only (no markdown fences):
   "sources": [<indexes of the sources you used, e.g. 1, 2>]
 }`;
 
-    const result = await getGenAI().models.generateContent({ model: "gemini-2.5-flash", contents: prompt, config: { temperature: 0.2 } });
+    const result = await getGeminiClient().models.generateContent({ model: "gemini-2.5-flash", contents: prompt, config: { temperature: 0.2 } });
     console.log(`[AI] generateContent succeeded`);
     const responseText = (result.text ?? "").trim();
     console.log(`[AI] Raw Gemini response: ${responseText.slice(0, 300)}`);
@@ -139,7 +139,7 @@ Respond in JSON only (no markdown fences):
       sources: uniqueSources,
     };
 
-    setCachedResult(trimmedQuery, responseData);
+    cacheSearchResponse(trimmedQuery, responseData);
     res.json(responseData);
   } catch (err: unknown) {
     const status = (err as { status?: number }).status;
@@ -155,13 +155,13 @@ Respond in JSON only (no markdown fences):
 
 // ── Reindex all posts ───────────────────────────────────────
 
-export const reindexPosts = async (
+export const handleReindexPosts = async (
   req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
     const force = req.query?.force === "true";
-    const result = await reindexAllPosts(force);
+    const result = await reindexAllPostEmbeddings(force);
     res.json(result);
   } catch (err) {
     console.error("Reindex error:", err);

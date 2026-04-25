@@ -3,10 +3,10 @@ import { IPost } from "../constants/constants";
 import Post from "../models/Post.model";
 import Embedding from "../models/Emmbeding";
 import {
-  getGenAI,
-  buildPostText,
-  splitIntoChunks,
-  cosineSimilarity,
+  getGeminiClient,
+  buildSearchablePostText,
+  splitTextIntoChunks,
+  calculateCosineSimilarity,
   delay,
   REINDEX_DELAY,
   REINDEX_ERROR_DELAY,
@@ -14,9 +14,9 @@ import {
 
 // ── Embedding generation ────────────────────────────────────
 
-export const generateEmbedding = async (text: string): Promise<number[]> => {
+export const generateTextEmbedding = async (text: string): Promise<number[]> => {
   try {
-    const result = await getGenAI().models.embedContent({ model: "gemini-embedding-001", contents: text });
+    const result = await getGeminiClient().models.embedContent({ model: "gemini-embedding-001", contents: text });
     return result.embeddings?.[0]?.values ?? [];
   } catch (err: unknown) {
     const status = (err as { status?: number }).status;
@@ -28,13 +28,13 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
 
 // ── Post embedding CRUD ─────────────────────────────────────
 
-export const upsertPostEmbedding = async (
+export const indexPostEmbedding = async (
   post: IPost & { user?: { username?: string } | mongoose.Types.ObjectId }
 ): Promise<void> => {
-  const text = buildPostText(post);
-  const chunks = splitIntoChunks(text);
+  const text = buildSearchablePostText(post);
+  const chunks = splitTextIntoChunks(text);
 
-  const embeddings = await Promise.all(chunks.map((chunk) => generateEmbedding(chunk)));
+  const embeddings = await Promise.all(chunks.map((chunk) => generateTextEmbedding(chunk)));
 
   const ops = chunks.map((content, i) => ({
     updateOne: {
@@ -52,7 +52,7 @@ export const upsertPostEmbedding = async (
 };
 
 
-export const deletePostEmbedding = async (
+export const removePostEmbedding = async (
   postId: mongoose.Types.ObjectId | string
 ): Promise<void> => {
   await Embedding.deleteMany({ post: postId });
@@ -67,11 +67,11 @@ export interface ChunkMatch {
   score: number;
 }
 
-export const findSimilarChunks = async (
+export const findRelevantChunks = async (
   queryText: string,
   limit = 5
 ): Promise<ChunkMatch[]> => {
-  const queryEmbedding = await generateEmbedding(queryText);
+  const queryEmbedding = await generateTextEmbedding(queryText);
 
   const allEmbeddings = await Embedding.find().lean();
   if (allEmbeddings.length === 0) return [];
@@ -80,7 +80,7 @@ export const findSimilarChunks = async (
     postId: emb.post.toString(),
     chunkIndex: emb.chunkIndex,
     content: emb.content,
-    score: cosineSimilarity(queryEmbedding, emb.embedding),
+    score: calculateCosineSimilarity(queryEmbedding, emb.embedding),
   }));
 
   scored.sort((a, b) => b.score - a.score);
@@ -89,7 +89,7 @@ export const findSimilarChunks = async (
 
 // ── Backfill / Reindex ──────────────────────────────────────
 
-export const reindexAllPosts = async (force = false): Promise<{ indexed: number; skipped: number; errors: number }> => {
+export const reindexAllPostEmbeddings = async (force = false): Promise<{ indexed: number; skipped: number; errors: number }> => {
   const posts = await Post.find().populate("user", "username").lean();
 
   let existingPostIds = new Set<string>();
@@ -109,7 +109,7 @@ export const reindexAllPosts = async (force = false): Promise<{ indexed: number;
       continue;
     }
     try {
-      await upsertPostEmbedding(post as unknown as IPost & { user?: { username?: string } });
+      await indexPostEmbedding(post as unknown as IPost & { user?: { username?: string } });
       indexed++;
       console.log(`[Embedding] Indexed post ${post._id} (${post.title})`);
       await delay(REINDEX_DELAY);

@@ -1,23 +1,25 @@
 import {
-  generateEmbedding,
-  upsertPostEmbedding,
-  deletePostEmbedding,
-  findSimilarChunks,
-  reindexAllPosts,
+  generateTextEmbedding,
+  indexPostEmbedding,
+  removePostEmbedding,
+  findRelevantChunks,
+  reindexAllPostEmbeddings,
 } from "../embedding";
 
 jest.mock("../../utils/aiUtils", () => ({
-  getGenAI: jest.fn(() => ({
+  getGeminiClient: jest.fn(() => ({
     models: {
       embedContent: jest.fn().mockResolvedValue({
         embeddings: [{ values: [0.1, 0.2, 0.3] }],
       }),
     },
   })),
-  buildPostText: jest.fn(() => "Title: Test. Content: Hello"),
-  splitIntoChunks: jest.fn((text: string) => [text]),
-  cosineSimilarity: jest.fn(() => 0.95),
+  buildSearchablePostText: jest.fn(() => "Title: Test. Content: Hello"),
+  splitTextIntoChunks: jest.fn((text: string) => [text]),
+  calculateCosineSimilarity: jest.fn(() => 0.95),
   delay: jest.fn(() => Promise.resolve()),
+  REINDEX_DELAY: 3000,
+  REINDEX_ERROR_DELAY: 10000,
 }));
 
 jest.mock("../../models/Emmbeding", () => ({
@@ -52,7 +54,7 @@ describe("embedding service", () => {
 
   describe("generateEmbedding", () => {
     it("returns embedding values", async () => {
-      const result = await generateEmbedding("test text");
+      const result = await generateTextEmbedding("test text");
       expect(result).toEqual([0.1, 0.2, 0.3]);
     });
   });
@@ -61,7 +63,7 @@ describe("embedding service", () => {
     it("calls bulkWrite and deleteMany", async () => {
       const Embedding = require("../../models/Emmbeding").default;
 
-      await upsertPostEmbedding({
+      await indexPostEmbedding({
         _id: "p1",
         title: "Test",
         content: "Hello",
@@ -77,7 +79,7 @@ describe("embedding service", () => {
     it("deletes embeddings for a post", async () => {
       const Embedding = require("../../models/Emmbeding").default;
 
-      await deletePostEmbedding("p1");
+      await removePostEmbedding("p1");
 
       expect(Embedding.deleteMany).toHaveBeenCalledWith({ post: "p1" });
     });
@@ -85,7 +87,7 @@ describe("embedding service", () => {
 
   describe("findSimilarChunks", () => {
     it("returns scored chunks sorted by similarity", async () => {
-      const results = await findSimilarChunks("query", 5);
+      const results = await findRelevantChunks("query", 5);
 
       expect(results.length).toBe(1);
       expect(results[0].postId).toBe("p1");
@@ -95,7 +97,7 @@ describe("embedding service", () => {
 
   describe("reindexAllPosts", () => {
     it("indexes posts that have no embeddings", async () => {
-      const result = await reindexAllPosts();
+      const result = await reindexAllPostEmbeddings();
 
       expect(result.indexed).toBe(1);
       expect(result.skipped).toBe(0);

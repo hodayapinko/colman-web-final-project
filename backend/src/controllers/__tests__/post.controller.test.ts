@@ -19,8 +19,8 @@ jest.mock("../../models/Post.model");
 jest.mock("../shared/functions");
 jest.mock("fs");
 jest.mock("../../services/embedding", () => ({
-  upsertPostEmbedding: jest.fn().mockResolvedValue(undefined),
-  deletePostEmbedding: jest.fn().mockResolvedValue(undefined),
+  indexPostEmbedding: jest.fn().mockResolvedValue(undefined),
+  removePostEmbedding: jest.fn().mockResolvedValue(undefined),
 }));
 
 describe("Post Controller", () => {
