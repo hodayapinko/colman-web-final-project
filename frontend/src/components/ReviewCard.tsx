@@ -37,7 +37,7 @@ const ReviewCard: React.FC<ReviewCardProps> = ({
   const avatarSrc = postUser?.profilePicture
     ? postUser.profilePicture.startsWith("http")
       ? postUser.profilePicture
-      : `http://${API_BASE_URL}/public/${postUser.profilePicture}`
+      : `${API_BASE_URL}/public/${postUser.profilePicture}`
     : undefined;
   const isFeed = mode === "feed";
   const isMine = mode === "mine";

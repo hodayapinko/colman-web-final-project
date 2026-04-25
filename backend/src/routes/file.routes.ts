@@ -63,8 +63,7 @@ router.post("/", upload.single("file"), function (req, res) {
     res.status(400).send({ message: "No file uploaded" });
     return;
   }
-  const base =
-    "http://" + process.env.DOMAIN_BASE + ":" + process.env.PORT + "/";
+  const base = process.env.DOMAIN_BASE + ":" + process.env.PORT + "/";
   const filePath = req.file.path.replace(/\\/g, "/");
   console.log("router.post(/file: " + base + filePath);
   res.status(200).send({ url: base + filePath });

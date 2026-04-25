@@ -15,4 +15,4 @@ export const timeAgo = (dateStr: string): string => {
 };
 
 export const resolveImageUrl = (image: string): string =>
-  image.startsWith("http") ? image : `http://${API_BASE_URL}/${image}`;
+  image.startsWith("http") ? image : `${API_BASE_URL}/${image}`;
