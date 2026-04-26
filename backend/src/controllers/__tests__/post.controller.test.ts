@@ -184,11 +184,14 @@ describe("Post Controller", () => {
         _id: "507f1f77bcf86cd799439011",
         title: "Test Post",
         content: "Test content",
-        user: "507f1f77bcf86cd799439012",
+        user: { _id: "507f1f77bcf86cd799439012", username: "john", profilePicture: "pic.jpg" },
       };
 
       mockRequest.params = { id: "507f1f77bcf86cd799439011" };
-      (Post.findById as jest.Mock).mockResolvedValue(mockPost);
+      (Post.findById as jest.Mock).mockImplementation(() => ({
+        populate: jest.fn().mockResolvedValue(mockPost),
+        select: jest.fn().mockResolvedValue(null),
+      }));
 
       await getPostById(mockRequest as Request, mockResponse as Response);
 
@@ -203,7 +206,10 @@ describe("Post Controller", () => {
 
     it("should return 404 if post not found", async () => {
       mockRequest.params = { id: "507f1f77bcf86cd799439011" };
-      (Post.findById as jest.Mock).mockResolvedValue(null);
+      (Post.findById as jest.Mock).mockImplementation(() => ({
+        populate: jest.fn().mockResolvedValue(null),
+        select: jest.fn().mockResolvedValue(null),
+      }));
 
       await getPostById(mockRequest as Request, mockResponse as Response);
 
@@ -216,7 +222,10 @@ describe("Post Controller", () => {
 
     it("should handle database errors", async () => {
       mockRequest.params = { id: "507f1f77bcf86cd799439011" };
-      (Post.findById as jest.Mock).mockRejectedValue(new Error("DB error"));
+      (Post.findById as jest.Mock).mockImplementation(() => ({
+        populate: jest.fn().mockRejectedValue(new Error("DB error")),
+        select: jest.fn().mockResolvedValue(null),
+      }));
 
       await getPostById(mockRequest as Request, mockResponse as Response);
 

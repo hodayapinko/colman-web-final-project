@@ -1,10 +1,16 @@
 import api from "./api";
 
+export interface ICommentUser {
+  _id: string;
+  username: string;
+  profilePicture?: string;
+}
+
 export interface IComment {
   _id: string;
   content: string;
   postId: string;
-  userId: string;
+  userId: string | ICommentUser;
   createdAt: string;
   updatedAt: string;
 }

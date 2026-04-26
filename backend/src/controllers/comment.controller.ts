@@ -62,12 +62,14 @@ export const createComment = async (
       userId,
     });
 
-    const savedComment = await newComment.save();
+    await newComment.save();
+
+    const populatedComment = await Comment.findById(newComment._id).populate("userId", "username profilePicture");
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
       message: "Comment created successfully",
-      data: savedComment,
+      data: populatedComment,
     });
   } catch (error: any) {
     if (error.name === "ValidationError") {
@@ -104,7 +106,7 @@ export const getCommentsByPostId = async (
       return;
     }
 
-    const comments = await Comment.find({ postId });
+    const comments = await Comment.find({ postId }).populate("userId", "username profilePicture");
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
