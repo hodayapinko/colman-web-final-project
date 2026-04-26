@@ -28,6 +28,7 @@ export function authMiddleware(
 
     if (parts.length !== 2 || parts[0] !== "Bearer") {
        getUnauthorizedResponse(res, "Access denied. Invalid token format.");
+        return;
     }
 
     const token = parts[1];
