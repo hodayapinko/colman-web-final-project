@@ -104,7 +104,7 @@ export const getCommentsByPostId = async (
       return;
     }
 
-    const comments = await Comment.find({ postId });
+    const comments = await Comment.find({ postId }).populate("userId", "username profilePicture");
 
     res.status(HTTP_STATUS.OK).json({
       success: true,
