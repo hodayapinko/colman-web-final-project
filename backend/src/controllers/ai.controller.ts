@@ -127,10 +127,10 @@ Respond in JSON only (no markdown fences):
       .filter(Boolean);
 
     // Deduplicate sources by postId
-    const seen = new Set<string>();
+    const seenPosts = new Set<string>();
     const uniqueSources = sources.filter((s: { postId: string } | null) => {
-      if (!s || seen.has(s.postId)) return false;
-      seen.add(s.postId);
+      if (!s || seenPosts.has(s.postId)) return false;
+      seenPosts.add(s.postId);
       return true;
     });
 
